@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
   },
+  // ssh2 ships a native binary (sshcrypto.node) that webpack can't bundle —
+  // keep it as a real Node `require()` at runtime instead of trying to
+  // process it through the webpack module graph.
+  serverExternalPackages: ["ssh2"],
 };
 
 export default nextConfig;

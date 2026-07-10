@@ -1,14 +1,14 @@
 import { Client, type SFTPWrapper } from "ssh2";
 
 /*
- * Uploads files straight to the Hostinger VPS over SFTP, so media lands on
- * 200.97.164.140 regardless of where this Next.js app itself is running
- * (local dev today, the VPS itself later).
+ * Uploads files to the Hostinger VPS over SFTP, so media always lands on
+ * 200.97.164.140 (in /var/www/uploads, which nginx serves at /uploads/*)
+ * regardless of where this Next.js app itself is running — local dev machine
+ * or the VPS itself.
  *
- * Server layout discovered on the VPS:
- *   /var/www/uploads/{banners,brands,categories,products,users,videos}/
- *   symlinked as /var/www/html/uploads -> /var/www/uploads
- *   so nginx (docroot /var/www/html) serves it all at /uploads/*.
+ * ssh2 has a native binary (sshcrypto.node) that webpack can't bundle, so
+ * it's marked as a server-external package in next.config.ts — that's what
+ * keeps `next build` from failing, not avoiding ssh2 altogether.
  */
 
 const VPS_HOST = "200.97.164.140";

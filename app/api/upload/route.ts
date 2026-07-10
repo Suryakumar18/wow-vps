@@ -20,7 +20,7 @@ const VIDEO_EXT: Record<string, string> = {
 const MAX_IMAGE = 15 * 1024 * 1024;   // 15 MB
 const MAX_VIDEO = 200 * 1024 * 1024;  // 200 MB
 
-// Existing folders under /var/www/uploads on the VPS.
+// Existing folders under /var/www/uploads.
 const IMAGE_FOLDERS: UploadFolder[] = ["banners", "brands", "categories", "products", "users"];
 
 const fail = (message: string, status = 400) =>
