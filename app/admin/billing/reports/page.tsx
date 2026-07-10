@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Loader2, FileSpreadsheet, FileText, TrendingUp, Receipt, IndianRupee, Package } from 'lucide-react';
-import BillingShell from '../BillingShell';
 import { TrendChart, DonutChart, BarList } from '../charts';
 import { exportExcel, exportTablePDF } from '../exporters';
 
@@ -156,5 +155,5 @@ function Reports() {
 }
 
 export default function ReportsPage() {
-  return <BillingShell><Reports /></BillingShell>;
+  return <Reports />;
 }

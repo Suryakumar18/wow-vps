@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Printer, Loader2, Trash2, Ban, CheckCircle2, FileSpreadsheet } from 'lucide-react';
-import BillingShell from '../../BillingShell';
 import { exportExcel } from '../../exporters';
 
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token')?.replace(/['"]+/g, '') || '' : '');
@@ -255,5 +254,5 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 export default function InvoiceDetailPage() {
-  return <BillingShell><InvoiceDetail /></BillingShell>;
+  return <InvoiceDetail />;
 }

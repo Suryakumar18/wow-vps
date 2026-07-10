@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import {
   Building2, Save, Loader2, CheckCircle2, Percent, Receipt, MapPin, Image as ImageIcon,
 } from 'lucide-react';
-import BillingShell from '../BillingShell';
 import MediaUploader from '@/app/components-admin/MediaUploader';
 
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token')?.replace(/['"]+/g, '') || '' : '');
@@ -187,5 +186,5 @@ function SettingsForm() {
 }
 
 export default function SettingsPage() {
-  return <BillingShell><SettingsForm /></BillingShell>;
+  return <SettingsForm />;
 }

@@ -22,6 +22,7 @@ export default function BillingShell({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const router   = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<{ fullname?: string; email?: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -39,11 +40,10 @@ export default function BillingShell({ children }: { children: React.ReactNode }
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setMobileOpen(false); }, [pathname]);
 
   useEffect(() => {
-    const sidebarEl = () => document.querySelector(".sidebar") as HTMLElement | null;
-    const toggle = () => sidebarEl()?.classList.toggle("open");
+    const toggle = () => setMobileOpen((v) => !v);
     window.addEventListener("wow-sidebar-toggle", toggle);
     return () => window.removeEventListener("wow-sidebar-toggle", toggle);
   }, []);
@@ -52,7 +52,7 @@ export default function BillingShell({ children }: { children: React.ReactNode }
   const initials = user?.fullname
     ? user.fullname.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "AD";
-  const closeMobile = () => (document.querySelector(".sidebar") as HTMLElement | null)?.classList.remove("open");
+  const closeMobile = () => setMobileOpen(false);
   const handleLogout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); router.push("/login"); };
 
   const title = NAV.find((n) => isActive(n.path))?.name || "Billing";
@@ -60,8 +60,9 @@ export default function BillingShell({ children }: { children: React.ReactNode }
   return (
     <div className="billing-root">
       <div className="layout-wrapper">
+        {mobileOpen && <div className="sidebar-backdrop" onClick={closeMobile} />}
         {/* ── Billing sidebar ── */}
-        <aside className="sidebar">
+        <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
           <div className="sidebar-logo">
             <div className="sidebar-logo-mark billing">₹</div>
             <div>

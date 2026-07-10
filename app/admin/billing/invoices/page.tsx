@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search, Loader2, FileText, FileSpreadsheet, Eye, Zap } from 'lucide-react';
-import BillingShell from '../BillingShell';
 import { exportExcel, exportTablePDF } from '../exporters';
 
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token')?.replace(/['"]+/g, '') || '' : '');
@@ -123,5 +122,5 @@ function Invoices() {
 }
 
 export default function InvoicesPage() {
-  return <BillingShell><Invoices /></BillingShell>;
+  return <Invoices />;
 }

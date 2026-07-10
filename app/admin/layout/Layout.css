@@ -438,19 +438,64 @@ body {
 .wow-guard-btn.danger  { color:var(--danger); }
 .wow-guard-btn.danger:hover:not(:disabled) { background:var(--danger-dim); border-color:rgba(239,68,68,.3); color:var(--danger); }
 
-/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+/* ─── Responsive ─────────────────────────────────────────────────────────────────
+   Breakpoints:
+     ≥1280px  desktop      — full sidebar, full topbar
+     1024–1280px laptop    — slightly narrower sidebar, same layout
+     768–1024px  tablet    — sidebar becomes an off-canvas overlay
+     480–768px   mobile    — compact topbar, condensed spacing
+     <480px      small phone — minimal single-row topbar
+   ──────────────────────────────────────────────────────────────────────────────── */
+
 @media(min-width:768px) {
   .topbar { margin:18px 24px 0; }
 }
+
+/* Laptop — trim the sidebar a bit to leave more room for content */
+@media(max-width:1280px) and (min-width:1025px) {
+  :root { --sidebar-w:220px; }
+  .sidebar-nav { padding-left:10px; padding-right:10px; }
+  .topbar-search { max-width:220px; }
+}
+
+/* Tablet and below — sidebar goes off-canvas, with a tap-to-close backdrop */
+.sidebar-backdrop {
+  display:none;
+  position:fixed; inset:0; z-index:70;
+  background:rgba(16,24,40,.45);
+  backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+  animation:guardFade .18s var(--ease) both;
+}
 @media(max-width:1024px) {
-  .sidebar { position:fixed; top:0; left:0; transform:translateX(-100%); box-shadow:var(--shadow-lg); }
+  .sidebar-backdrop { display:block; }
+  .sidebar { position:fixed; top:0; left:0; transform:translateX(-100%); box-shadow:var(--shadow-lg); z-index:80;
+             transition:transform 260ms var(--ease); }
   .sidebar.open { transform:translateX(0); }
   .topbar-menu-btn { display:flex; }
   .topbar-user-meta, .topbar-user-chev { display:none; }
   .topbar-user-btn { padding:0 5px; }
+  .topbar-search { max-width:260px; }
 }
+
+/* Mobile — condensed topbar and page padding */
 @media(max-width:640px) {
-  .topbar { margin:10px 10px 0; padding:7px 8px; }
+  .topbar { margin:10px 10px 0; padding:7px 8px; gap:8px; }
   .topbar-primary-btn span { display:none; }
   .topbar-primary-btn { padding:0 11px; }
+  .topbar-search { max-width:none; }
+  .topbar-icon-btn, .topbar-menu-btn { width:34px; height:34px; }
+  .kpi, .bcard { border-radius:12px; }
+}
+
+/* Small phones — trim further so the topbar never wraps or overflows */
+@media(max-width:480px) {
+  .topbar { margin:8px 8px 0; padding:6px; border-radius:12px; }
+  .topbar-left { gap:6px; }
+  .topbar-right { gap:5px; }
+  .topbar-divider { display:none; }
+  .topbar-user-btn { padding:0 2px; }
+  .topbar-user-avatar { width:26px; height:26px; font-size:9.5px; }
+  .topbar-primary-btn { padding:0 9px; height:34px; }
+  .topbar-icon-btn, .topbar-menu-btn { width:32px; height:32px; }
+  .sidebar { width:min(var(--sidebar-w), 84vw); }
 }

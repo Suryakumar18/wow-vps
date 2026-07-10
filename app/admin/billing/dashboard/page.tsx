@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import {
   IndianRupee, Receipt, TrendingUp, Wallet, Zap, ArrowUpRight, Loader2, FileText,
 } from 'lucide-react';
-import BillingShell from '../BillingShell';
 import { TrendChart, DonutChart, BarList } from '../charts';
 
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token')?.replace(/['"]+/g, '') || '' : '');
@@ -141,5 +140,5 @@ function Dashboard() {
 }
 
 export default function BillingDashboardPage() {
-  return <BillingShell><Dashboard /></BillingShell>;
+  return <Dashboard />;
 }

@@ -61,6 +61,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
   const [sectionsOpen, setSectionsOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<{ fullname?: string; email?: string } | null>(null);
 
   useEffect(() => {
@@ -75,10 +76,12 @@ export default function Sidebar() {
     if (SECTION_CHILDREN.some((c) => c.path === pathname)) setSectionsOpen(true);
   }, [pathname]);
 
-  // Listen for mobile toggle event dispatched by Navbar
+  // Close the mobile drawer automatically on every route change
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Listen for the toggle event dispatched by the topbar's hamburger button
   useEffect(() => {
-    const sidebarEl = document.querySelector(".sidebar") as HTMLElement | null;
-    const toggle = () => sidebarEl?.classList.toggle("open");
+    const toggle = () => setMobileOpen((v) => !v);
     window.addEventListener("wow-sidebar-toggle", toggle);
     return () => window.removeEventListener("wow-sidebar-toggle", toggle);
   }, []);
@@ -90,9 +93,7 @@ export default function Sidebar() {
     ? user.fullname.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "AD";
 
-  const closeMobile = () => {
-    (document.querySelector(".sidebar") as HTMLElement | null)?.classList.remove("open");
-  };
+  const closeMobile = () => setMobileOpen(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -101,7 +102,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
+    <>
+      {mobileOpen && <div className="sidebar-backdrop" onClick={closeMobile} />}
+      <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
       {/* Logo card */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-mark">W</div>
@@ -187,6 +190,7 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -6,7 +6,6 @@ import {
   Search, Plus, Minus, Trash2, Zap, Loader2, CheckCircle2, Printer,
   User, Banknote, CreditCard, Smartphone, Clock, X, Keyboard,
 } from 'lucide-react';
-import BillingShell from '../BillingShell';
 
 const API = '/api';
 
@@ -376,5 +375,5 @@ function QuickBill() {
 }
 
 export default function QuickBillPage() {
-  return <BillingShell><QuickBill /></BillingShell>;
+  return <QuickBill />;
 }
