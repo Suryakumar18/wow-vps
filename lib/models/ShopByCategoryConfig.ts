@@ -5,7 +5,7 @@ interface IShopByCategoryConfig extends Document { items: IShopByCategoryItem[];
 interface IShopByCategoryConfigModel extends Model<IShopByCategoryConfig> { getConfig(): Promise<IShopByCategoryConfig>; }
 
 const itemSchema = new Schema<IShopByCategoryItem>(
-  { id: { type: String, required: true }, title: { type: String, required: true }, img: { type: String, required: true }, color: { type: String, required: true }, accent: { type: String, required: true }, icon: { type: String, required: true }, count: { type: Number, required: true }, description: { type: String, required: true }, badge: { type: String, required: true } },
+  { id: { type: String, required: true }, title: { type: String, required: true }, img: { type: String, default: "" }, color: { type: String, required: true }, accent: { type: String, required: true }, icon: { type: String, required: true }, count: { type: Number, required: true }, description: { type: String, required: true }, badge: { type: String, required: true } },
   { _id: false }
 );
 const schema = new Schema<IShopByCategoryConfig>({ items: [itemSchema] }, { timestamps: true });
@@ -27,4 +27,7 @@ schema.statics.getConfig = async function () {
   return config;
 };
 
-export default (mongoose.models.ShopByCategoryConfig as IShopByCategoryConfigModel) || mongoose.model<IShopByCategoryConfig, IShopByCategoryConfigModel>("ShopByCategoryConfig", schema);
+// Recompile from the current schema on (re)load so schema edits take effect without
+// a full server restart. In production the module loads once, so this is a no-op there.
+if (mongoose.models.ShopByCategoryConfig) mongoose.deleteModel("ShopByCategoryConfig");
+export default mongoose.model<IShopByCategoryConfig, IShopByCategoryConfigModel>("ShopByCategoryConfig", schema);

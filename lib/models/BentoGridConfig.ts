@@ -5,7 +5,7 @@ interface IBentoGridConfig extends Document { items: IBentoGridItem[]; }
 interface IBentoGridConfigModel extends Model<IBentoGridConfig> { getConfig(): Promise<IBentoGridConfig>; }
 
 const itemSchema = new Schema<IBentoGridItem>(
-  { id: { type: String, required: true }, title: { type: String, required: true }, subtitle: { type: String, required: true }, className: { type: String, required: true }, img: { type: String, required: true }, isVideo: { type: Boolean, default: false }, icon: { type: String, required: true }, iconColor: { type: String, required: true }, color: { type: String, required: true } },
+  { id: { type: String, required: true }, title: { type: String, required: true }, subtitle: { type: String, required: true }, className: { type: String, required: true }, img: { type: String, default: "" }, isVideo: { type: Boolean, default: false }, icon: { type: String, required: true }, iconColor: { type: String, required: true }, color: { type: String, required: true } },
   { _id: false }
 );
 const schema = new Schema<IBentoGridConfig>({ items: [itemSchema] }, { timestamps: true });
@@ -30,4 +30,7 @@ schema.statics.getConfig = async function () {
   return config;
 };
 
-export default (mongoose.models.BentoGridConfig as IBentoGridConfigModel) || mongoose.model<IBentoGridConfig, IBentoGridConfigModel>("BentoGridConfig", schema);
+// Recompile from the current schema on (re)load so schema edits take effect without
+// a full server restart. In production the module loads once, so this is a no-op there.
+if (mongoose.models.BentoGridConfig) mongoose.deleteModel("BentoGridConfig");
+export default mongoose.model<IBentoGridConfig, IBentoGridConfigModel>("BentoGridConfig", schema);

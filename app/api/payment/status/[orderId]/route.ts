@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import Order from "@/lib/models/Order";
 import Product from "@/lib/models/Product";
+import { notifyOrderPlaced } from "@/lib/push";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   await connectDB();
@@ -51,6 +52,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ orderI
           }
         }
       }
+
+      // Order is now confirmed — notify admin (navbar bell + push) + customer. Runs once
+      // because the guard above flips paymentStatus to SUCCESS on the first successful check.
+      notifyOrderPlaced(order as any).catch(() => {});
     }
 
     return Response.json({ success: true, status: "SUCCESS", message: "Payment verified.", orderId });

@@ -108,14 +108,16 @@ const ShopByAge = memo(({ theme, isPreview = false, previewData = [] }: ShopByAg
                 {/* CHANGED: Reduced padding slightly on mobile to maximize space */}
                 <div className="absolute inset-0 flex flex-col p-3 md:p-4">
                   <div className="relative w-full aspect-square bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center overflow-hidden mb-2 md:mb-4 shadow-inner border border-white/10 group-hover:bg-white/30 transition-colors">
-                    <motion.img 
-                      src={age.img} 
-                      alt={age.label} 
-                      loading="lazy"
-                      className="w-4/5 h-4/5 object-contain drop-shadow-md" 
-                      whileHover={{ scale: 1.15 }}
-                      transition={{ type: "spring", stiffness: 200 }}
-                    />
+                    {age.img && (
+                      <motion.img
+                        src={age.img}
+                        alt={age.label}
+                        loading="lazy"
+                        className="w-4/5 h-4/5 object-contain drop-shadow-md"
+                        whileHover={{ scale: 1.15 }}
+                        transition={{ type: "spring", stiffness: 200 }}
+                      />
+                    )}
                   </div>
                   <div className="flex-1 flex flex-col items-center justify-end pb-1 md:pb-2">
                     <div className="text-white mb-1 md:mb-2 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300">

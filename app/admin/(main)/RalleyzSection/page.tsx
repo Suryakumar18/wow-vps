@@ -617,7 +617,8 @@ export default function AdminRalleyzSection() {
       const response = await axios.get<ApiResponse>(`${API_URL}/ralleyz`);
       
       if (response.data.success && response.data.data) {
-        setItems(response.data.data);
+        const d: any = response.data.data;
+        setItems(Array.isArray(d) ? d : (d?.items ?? []));
         setImageErrors({});
       } else {
         setItems([]);
@@ -675,7 +676,8 @@ export default function AdminRalleyzSection() {
           const response = await axiosInstance.post('/ralleyz/reset');
           
           if (response.data.success && response.data.data) {
-            setItems(response.data.data);
+            const d: any = response.data.data;
+            setItems(Array.isArray(d) ? d : (d?.items ?? []));
             setImageErrors({});
             addToast('Reset to default successfully!', 'success');
           }

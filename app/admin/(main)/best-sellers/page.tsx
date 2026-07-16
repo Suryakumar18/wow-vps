@@ -55,7 +55,7 @@ export default function BestSellersAdminPage() {
     try {
       setIsLoading(true);
       const res = await axios.get(`${API_URL}/bestsellers`);
-      if (res.data.success) setItems(res.data.data);
+      if (res.data.success) { const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? [])); }
     } catch (error) {
       console.error(error);
     } finally {
@@ -90,7 +90,7 @@ export default function BestSellersAdminPage() {
     try {
       setIsResetting(true);
       const res = await axiosInstance.post('/bestsellers/reset');
-      if (res.data.success) setItems(res.data.data);
+      if (res.data.success) { const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? [])); }
     } catch (error) {
       console.error(error);
     } finally {
@@ -223,7 +223,7 @@ export default function BestSellersAdminPage() {
                 <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-4 items-center">
                   <div className="w-20 h-24 rounded-lg flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: item.color }}>
                     <div className="absolute inset-0 bg-black/20" />
-                    <img src={item.img} alt={item.name} className="w-full h-full object-cover relative z-10" />
+                    {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover relative z-10" />}
                   </div>
                   
                   <div className="flex-1">

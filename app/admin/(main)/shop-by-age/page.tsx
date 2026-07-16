@@ -72,7 +72,7 @@ export default function ShopByAgeAdminPage() {
     try {
       setIsLoading(true);
       const res = await axios.get(`${API_URL}/shopbyage`);
-      if (res.data.success) setItems(res.data.data);
+      if (res.data.success) { const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? [])); }
     } catch (error) {
       console.error(error);
     } finally {
@@ -101,7 +101,7 @@ export default function ShopByAgeAdminPage() {
       setIsResetting(true);
       const res = await axiosInstance.post('/shopbyage/reset');
       if (res.data.success) {
-        setItems(res.data.data);
+        const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? []));
         setSaveStatus({ type: 'success', message: 'Reset to defaults successfully!' });
         setTimeout(() => setSaveStatus({ type: '', message: '' }), 3000);
       }
@@ -315,7 +315,7 @@ export default function ShopByAgeAdminPage() {
               {items.map((item, i) => (
                 <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-4 items-center">
                   <div className={`w-16 h-20 rounded-lg flex-shrink-0 relative overflow-hidden bg-gradient-to-b ${item.gradient}`}>
-                    <img src={item.img} alt={item.label} className="w-full h-full object-contain p-2 relative z-10" />
+                    {item.img && <img src={item.img} alt={item.label} className="w-full h-full object-contain p-2 relative z-10" />}
                   </div>
                   
                   <div className="flex-1">

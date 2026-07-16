@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import CharacterConfig from "@/lib/models/CharacterConfig";
 import { requireAdmin } from "@/lib/auth";
+import { updateSingletonConfig } from "@/lib/updateSingletonConfig";
 
 export async function GET() {
   await connectDB();
@@ -14,8 +15,6 @@ export async function PUT(req: NextRequest) {
   const result = requireAdmin(req);
   if ("error" in result) return result.error;
   const body = await req.json();
-  let config = await CharacterConfig.findOne();
-  if (config) { Object.assign(config, body); await config.save(); }
-  else config = await CharacterConfig.create(body);
+  const config = await updateSingletonConfig(CharacterConfig, body);
   return Response.json({ success: true, data: config });
 }

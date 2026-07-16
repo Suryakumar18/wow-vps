@@ -189,7 +189,7 @@ const ShopByCategory = memo(({ theme = 'dark', isPreview = false, previewData = 
                       {/* Image Half */}
                       <div className="h-[50%] md:h-[55%] relative overflow-hidden bg-gray-900">
                         <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-20`} />
-                        <img src={category.img} alt={category.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                        {category.img && <img src={category.img} alt={category.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />}
                         <div className={`absolute inset-0 bg-gradient-to-t ${isLight ? 'from-white' : 'from-[#111]'} to-transparent`} />
                         <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10">
                            <span className="px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-white/90 dark:bg-black/80 backdrop-blur-md rounded-full text-[#D4AF37] shadow-lg border border-[#D4AF37]/20">

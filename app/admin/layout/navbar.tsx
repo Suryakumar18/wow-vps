@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Menu, ChevronDown, ExternalLink, LogOut, LayoutDashboard } from "lucide-react";
+import { Search, Menu, ChevronDown, ExternalLink, LogOut, LayoutDashboard } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 import "./Layout.css";
 
 /* Floating topbar card — rendered at the top of the page content, not a fixed navbar */
@@ -66,10 +67,7 @@ export default function Topbar() {
 
       {/* Right — bell / user / view site */}
       <div className="topbar-right">
-        <button className="topbar-icon-btn" aria-label="Notifications">
-          <Bell size={16} />
-          <span className="topbar-notif-dot" />
-        </button>
+        <NotificationBell />
 
         <div className="topbar-divider" />
 

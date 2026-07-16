@@ -79,7 +79,7 @@ export default function BentoGridAdminPage() {
     try {
       setIsLoading(true);
       const res = await axios.get(`${API_URL}/bentogrid`);
-      if (res.data.success) setItems(res.data.data);
+      if (res.data.success) { const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? [])); }
     } catch (error) {
       console.error(error);
     } finally {
@@ -108,7 +108,7 @@ export default function BentoGridAdminPage() {
       setIsResetting(true);
       const res = await axiosInstance.post('/bentogrid/reset');
       if (res.data.success) {
-        setItems(res.data.data);
+        const d = res.data.data; setItems(Array.isArray(d) ? d : (d?.items ?? []));
         setSaveStatus({ type: 'success', message: 'Reset to defaults successfully!' });
         setTimeout(() => setSaveStatus({ type: '', message: '' }), 3000);
       }
@@ -322,11 +322,11 @@ export default function BentoGridAdminPage() {
               {items.map((item, i) => (
                 <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-4 items-center">
                   <div className={`w-24 h-24 rounded-lg flex-shrink-0 relative overflow-hidden bg-gray-900`}>
-                    {item.isVideo ? (
+                    {item.img && (item.isVideo ? (
                       <video src={item.img} className="w-full h-full object-cover opacity-80" />
                     ) : (
                       <img src={item.img} alt={item.title} className="w-full h-full object-cover opacity-80" />
-                    )}
+                    ))}
                   </div>
                   
                   <div className="flex-1">

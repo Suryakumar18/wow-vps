@@ -179,7 +179,7 @@ export default function CharacterAdminPage() {
       const response = await axios.get(`${API_URL}/characters`);
       
       if (response.data.success) {
-        setCharacters(response.data.data);
+        { const d: any = response.data.data; setCharacters(Array.isArray(d) ? d : (d?.characters ?? [])); }
       } else {
         setFetchError('Failed to load configuration');
       }
@@ -209,7 +209,7 @@ export default function CharacterAdminPage() {
       
       if (response.data.success) {
         setSaveStatus({ type: 'success', message: 'Character roster saved successfully!' });
-        setCharacters(response.data.data);
+        { const d: any = response.data.data; setCharacters(Array.isArray(d) ? d : (d?.characters ?? [])); }
         setTimeout(() => setSaveStatus({ type: '', message: '' }), 3000);
       }
     } catch (error: any) {
@@ -231,7 +231,7 @@ export default function CharacterAdminPage() {
       const response = await axiosInstance.post('/characters/reset');
       
       if (response.data.success) {
-        setCharacters(response.data.data);
+        { const d: any = response.data.data; setCharacters(Array.isArray(d) ? d : (d?.characters ?? [])); }
         setSaveStatus({ type: 'success', message: 'Configuration reset to defaults!' });
         setTimeout(() => setSaveStatus({ type: '', message: '' }), 3000);
       }

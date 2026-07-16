@@ -17,8 +17,8 @@ const VIDEO_EXT: Record<string, string> = {
   "video/quicktime": ".mov", "video/x-matroska": ".mkv", "video/x-msvideo": ".avi",
 };
 
-const MAX_IMAGE = 15 * 1024 * 1024;   // 15 MB
-const MAX_VIDEO = 200 * 1024 * 1024;  // 200 MB
+const MAX_IMAGE = 70 * 1024 * 1024;   // 70 MB
+const MAX_VIDEO = 70 * 1024 * 1024;   // 70 MB
 
 // Existing folders under /var/www/uploads.
 const IMAGE_FOLDERS: UploadFolder[] = ["banners", "brands", "categories", "products", "users"];

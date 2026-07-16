@@ -5,7 +5,7 @@ interface IShopByAgeConfig extends Document { items: IShopByAgeItem[]; }
 interface IShopByAgeConfigModel extends Model<IShopByAgeConfig> { getConfig(): Promise<IShopByAgeConfig>; }
 
 const itemSchema = new Schema<IShopByAgeItem>(
-  { id: { type: String, required: true }, label: { type: String, required: true }, sub: { type: String, required: true }, img: { type: String, required: true }, gradient: { type: String, required: true }, icon: { type: String, required: true } },
+  { id: { type: String, required: true }, label: { type: String, required: true }, sub: { type: String, required: true }, img: { type: String, default: "" }, gradient: { type: String, required: true }, icon: { type: String, required: true } },
   { _id: false }
 );
 const schema = new Schema<IShopByAgeConfig>({ items: [itemSchema] }, { timestamps: true });
@@ -28,4 +28,7 @@ schema.statics.getConfig = async function () {
   return config;
 };
 
-export default (mongoose.models.ShopByAgeConfig as IShopByAgeConfigModel) || mongoose.model<IShopByAgeConfig, IShopByAgeConfigModel>("ShopByAgeConfig", schema);
+// Recompile from the current schema on (re)load so schema edits take effect without
+// a full server restart. In production the module loads once, so this is a no-op there.
+if (mongoose.models.ShopByAgeConfig) mongoose.deleteModel("ShopByAgeConfig");
+export default mongoose.model<IShopByAgeConfig, IShopByAgeConfigModel>("ShopByAgeConfig", schema);

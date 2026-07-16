@@ -52,10 +52,10 @@ const BentoItem = memo(({ item, theme, index }: { item: BentoItemType, theme: st
       className={`group relative rounded-2xl md:rounded-[2.5rem] overflow-hidden cursor-pointer ${item.className} ${theme === 'light' ? 'bg-gray-100' : 'bg-[#0f0f0f]'} border ${theme === 'light' ? 'border-gray-200' : 'border-white/10'} will-change-transform`}
     >
       <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-        {item.isVideo ? (
-          <video 
+        {item.isVideo && item.img ? (
+          <video
             ref={videoRef}
-            src={item.img} 
+            src={item.img}
             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
             muted loop playsInline preload="none" crossOrigin="anonymous" 
           />

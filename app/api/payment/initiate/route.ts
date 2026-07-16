@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import Order from "@/lib/models/Order";
 import Product from "@/lib/models/Product";
 import { sendOrderConfirmation, sendAdminOrderAlert } from "@/lib/email";
+import { notifyOrderPlaced } from "@/lib/push";
 import axios from "axios";
 
 const CLIENT_ID     = process.env.PHONEPE_CLIENT_ID     || "";
@@ -82,6 +83,9 @@ export async function POST(req: NextRequest) {
       sendOrderConfirmation(newOrder as any).catch(() => {});
       sendAdminOrderAlert(newOrder as any).catch(() => {});
 
+      // Push notifications: admin (navbar bell + push) + customer confirmation
+      notifyOrderPlaced(newOrder as any).catch(() => {});
+
       return Response.json({ success: true, isCod: true, url: returnUrl });
     }
 
@@ -107,6 +111,9 @@ export async function POST(req: NextRequest) {
 
       sendOrderConfirmation(newOrder as any).catch(() => {});
       sendAdminOrderAlert(newOrder as any).catch(() => {});
+
+      // Push notifications: admin (navbar bell + push) + customer confirmation
+      notifyOrderPlaced(newOrder as any).catch(() => {});
 
       return Response.json({ success: true, isUpi: true, url: returnUrl });
     }

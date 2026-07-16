@@ -152,7 +152,7 @@ export default function MediaUploader({
             <span className="text-sm font-semibold text-gray-700">
               {label || `Upload ${accept === 'both' ? 'image or video' : accept}`}
             </span>
-            <span className="text-[11px] text-gray-400">Click or drag &amp; drop · {accept === 'video' ? 'MP4, WebM up to 200MB' : accept === 'both' ? 'image up to 15MB · video up to 200MB' : 'JPG, PNG, WebP up to 15MB'}</span>
+            <span className="text-[11px] text-gray-400">Click or drag &amp; drop · {accept === 'video' ? 'MP4, WebM up to 70MB' : accept === 'both' ? 'image or video up to 70MB' : 'JPG, PNG, WebP up to 70MB'}</span>
           </>
         )}
         <input ref={inputRef} type="file" accept={acceptAttr(accept)} onChange={onPick} className="hidden" />

@@ -5,7 +5,7 @@ interface IBestSellerConfig extends Document { items: IBestSellerItem[]; }
 interface IBestSellerConfigModel extends Model<IBestSellerConfig> { getConfig(): Promise<IBestSellerConfig>; }
 
 const itemSchema = new Schema<IBestSellerItem>(
-  { id: { type: String, required: true }, name: { type: String, required: true }, img: { type: String, required: true }, color: { type: String, required: true } },
+  { id: { type: String, required: true }, name: { type: String, required: true }, img: { type: String, default: "" }, color: { type: String, required: true } },
   { _id: false }
 );
 const schema = new Schema<IBestSellerConfig>({ items: [itemSchema] }, { timestamps: true });
@@ -25,4 +25,7 @@ schema.statics.getConfig = async function () {
   return config;
 };
 
-export default (mongoose.models.BestSellerConfig as IBestSellerConfigModel) || mongoose.model<IBestSellerConfig, IBestSellerConfigModel>("BestSellerConfig", schema);
+// Recompile from the current schema on (re)load so schema edits take effect without
+// a full server restart. In production the module loads once, so this is a no-op there.
+if (mongoose.models.BestSellerConfig) mongoose.deleteModel("BestSellerConfig");
+export default mongoose.model<IBestSellerConfig, IBestSellerConfigModel>("BestSellerConfig", schema);

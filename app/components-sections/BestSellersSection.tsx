@@ -133,11 +133,13 @@ const BestSellers = memo(({ theme = 'dark', isPreview = false, previewData = [] 
                 style={{ backgroundColor: item.color || '#111827' }}
               >
                 {/* Background Image */}
-                <img 
-                  src={item.img} 
-                  alt={item.name} 
-                  className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[1000ms] ease-out ${isActive ? 'scale-105' : 'scale-100'}`}
-                />
+                {item.img && (
+                  <img
+                    src={item.img}
+                    alt={item.name}
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[1000ms] ease-out ${isActive ? 'scale-105' : 'scale-100'}`}
+                  />
+                )}
                 
                 {/* Gradient Overlay for Active Card Text Legibility */}
                 <div 
