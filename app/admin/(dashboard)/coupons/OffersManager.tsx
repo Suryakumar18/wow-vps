@@ -23,6 +23,8 @@ interface OfferRow {
 interface PickedProduct {
   id: string;
   title: string;
+  image?: string;
+  price?: number;
 }
 
 /**
@@ -48,25 +50,35 @@ export default function OffersManager({ offers }: { offers: OfferRow[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // Debounced product search for the "selected products" scope.
+  // Product list for the "selected products" scope: a default page of
+  // products appears as soon as the scope opens, and typing filters it
+  // (debounced so we don't query per keystroke).
   useEffect(() => {
-    if (scope !== "selected" || query.trim().length < 2) {
+    if (scope !== "selected") {
       setResults([]);
       return;
     }
-    const timer = setTimeout(() => {
-      fetch(`/api/admin/products?q=${encodeURIComponent(query.trim())}&limit=8`)
-        .then((res) => (res.ok ? res.json() : { products: [] }))
-        .then((body) =>
-          setResults(
-            (body.products ?? []).map((p: { id: string; title: string }) => ({
-              id: p.id,
-              title: p.title,
-            })),
-          ),
-        )
-        .catch(() => setResults([]));
-    }, 300);
+    const q = query.trim();
+    const timer = setTimeout(
+      () => {
+        fetch(`/api/admin/products?limit=10${q ? `&q=${encodeURIComponent(q)}` : ""}`)
+          .then((res) => (res.ok ? res.json() : { products: [] }))
+          .then((body) =>
+            setResults(
+              (body.products ?? []).map(
+                (p: { id: string; title: string; image?: string; price?: number }) => ({
+                  id: p.id,
+                  title: p.title,
+                  image: p.image ?? "",
+                  price: p.price,
+                }),
+              ),
+            ),
+          )
+          .catch(() => setResults([]));
+      },
+      q ? 300 : 0,
+    );
     return () => clearTimeout(timer);
   }, [query, scope]);
 
@@ -311,21 +323,41 @@ export default function OffersManager({ offers }: { offers: OfferRow[] }) {
             </div>
 
             {results.length > 0 && (
-              <ul className="mt-2 overflow-hidden rounded-lg border border-line bg-white">
+              <ul className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-line bg-white">
                 {results
                   .filter((r) => !selected.some((s) => s.id === r.id))
                   .map((product) => (
-                    <li key={product.id}>
+                    <li key={product.id} className="border-b border-line last:border-b-0">
                       <button
                         type="button"
                         onClick={() => {
                           setSelected((prev) => [...prev, product]);
                           setQuery("");
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-nano text-ink transition-colors hover:bg-gold-50"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-gold-50"
                       >
-                        <Plus size={12} aria-hidden="true" className="shrink-0 text-gold-600" />
-                        <span className="truncate">{product.title}</span>
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt=""
+                            className="h-9 w-9 shrink-0 rounded-md border border-line object-cover"
+                          />
+                        ) : (
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-mist text-slate-400">
+                            <Plus size={12} aria-hidden="true" />
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-nano font-semibold text-ink">
+                            {product.title}
+                          </span>
+                          {typeof product.price === "number" && (
+                            <span className="block text-nano tabular-nums text-slate-500">
+                              ₹{product.price.toLocaleString("en-IN")}
+                            </span>
+                          )}
+                        </span>
+                        <Plus size={13} aria-hidden="true" className="shrink-0 text-gold-600" />
                       </button>
                     </li>
                   ))}

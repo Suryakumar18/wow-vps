@@ -36,6 +36,8 @@ const pickerSelect = {
   isDeal: true,
   category: { select: { name: true } },
   brand: { select: { name: true } },
+  // One thumbnail so pickers can show the product, not just its name.
+  images: { select: { url: true }, orderBy: { position: "asc" as const }, take: 1 },
 } as const;
 
 /**
@@ -90,6 +92,7 @@ export async function GET(request: NextRequest) {
       title: p.title,
       slug: p.slug,
       price: p.price,
+      image: p.images[0]?.url ?? "",
       categoryName: p.category.name,
       brandName: p.brand.name,
       isFeatured: p.isFeatured,
