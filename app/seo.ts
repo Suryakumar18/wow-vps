@@ -21,18 +21,39 @@ export const BRAND_ALIASES = [
   "WOW Lifestyle Texvalley",
   "Wowlifestyle Texvalley",
   "WOW Lifestyle Erode",
+  "WOW Lifestyle Thuraiyur",
+  "Wowlifestyle Thuraiyur",
 ];
 
-export const BUSINESS = {
-  /** Texvalley is the mall the shop trades from. */
-  venue: "Texvalley",
-  locality: "Erode",
-  region: "Tamil Nadu",
-  country: "IN",
-  telephone: "+919677710045",
-  /** Shown to Google as the price band; ₹₹ = mid-market. */
-  priceRange: "₹₹",
-} as const;
+export const TELEPHONE = "+919677710045";
+/** Shown to Google as the price band; ₹₹ = mid-market. */
+export const PRICE_RANGE = "₹₹";
+
+/**
+ * The shops, each published as its own local business.
+ *
+ * Two branches means two entities: a single LocalBusiness carrying one
+ * address is what stops the other town from ever appearing in a "toy shop
+ * near me" result. Both hang off the one Organization below, which is how
+ * search engines are told they are the same company rather than rivals.
+ */
+export const BRANCHES = [
+  {
+    id: "texvalley",
+    /** Texvalley is the mall the shop trades from. */
+    venue: "Texvalley",
+    locality: "Erode",
+    region: "Tamil Nadu",
+    country: "IN",
+  },
+  {
+    id: "thuraiyur",
+    venue: "",
+    locality: "Thuraiyur",
+    region: "Tamil Nadu",
+    country: "IN",
+  },
+] as const;
 
 /** What the shop sells, in the words shoppers search for. */
 export const CATEGORIES_SOLD = [
@@ -52,8 +73,8 @@ export const TITLE_TEMPLATE = `%s | ${BRAND}`;
 
 export const DESCRIPTION =
   "Hobby-grade RC cars, drones, bikes, jeeps and toys for kids and adults at " +
-  "WOW Lifestyle, Texvalley, Erode. Shop online with fast delivery across " +
-  "Tamil Nadu and all over India.";
+  "WOW Lifestyle — Texvalley, Erode and Thuraiyur. Shop online with fast " +
+  "delivery across Tamil Nadu and all over India.";
 
 export const DESCRIPTION_SHORT =
   "Toys, hobby-grade RC cars, drones and bikes for kids and adults. " +
@@ -88,10 +109,13 @@ export const KEYWORDS = [
   "best toy shop Tamil Nadu",
   "online toy store India",
   "toy shop Coimbatore Salem Tiruppur",
-  // The site previously listed Thuraiyur as the shop's town. Kept as search
-  // terms so that history isn't thrown away while Texvalley leads.
+  // The second branch. Shoppers spell the town several ways, and the site
+  // itself used two of these spellings before.
   "wowlifestyle Thuraiyur",
+  "wow lifestyle Thuraiyur",
   "toy shop Thuraiyur",
+  "toy shop Thuraiur",
+  "toys Thuraiyur Trichy",
   // Product intent
   "hobby grade RC cars India",
   "remote control cars Erode",
@@ -106,40 +130,66 @@ export const KEYWORDS = [
   "birthday gift toys Erode",
 ];
 
-/**
- * The shop itself. `ToyStore` is a Schema.org subtype of LocalBusiness, which
- * is what makes the address, phone and opening hours eligible to appear in a
- * local search result rather than just a plain blue link.
- */
-export function storeJsonLd(siteUrl: string) {
+/** The company both branches belong to. */
+export function organizationJsonLd(siteUrl: string) {
   return {
     "@context": "https://schema.org",
-    "@type": "ToyStore",
-    "@id": `${siteUrl}/#store`,
+    "@type": "Organization",
+    "@id": `${siteUrl}/#org`,
     name: BRAND,
     alternateName: BRAND_ALIASES,
     url: siteUrl,
     logo: `${siteUrl}/icon-512.png`,
     image: `${siteUrl}/og-image.jpg`,
     description: DESCRIPTION,
-    priceRange: BUSINESS.priceRange,
-    currenciesAccepted: "INR",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: BUSINESS.venue,
-      addressLocality: BUSINESS.locality,
-      addressRegion: BUSINESS.region,
-      addressCountry: BUSINESS.country,
-    },
+    telephone: TELEPHONE,
     contactPoint: {
       "@type": "ContactPoint",
-      telephone: BUSINESS.telephone,
+      telephone: TELEPHONE,
       contactType: "customer service",
       areaServed: "IN",
       availableLanguage: ["Tamil", "English"],
     },
     areaServed: [
       { "@type": "City", name: "Erode" },
+      { "@type": "City", name: "Thuraiyur" },
+      { "@type": "State", name: "Tamil Nadu" },
+      { "@type": "Country", name: "India" },
+    ],
+    subOrganization: BRANCHES.map((b) => ({ "@id": `${siteUrl}/#store-${b.id}` })),
+  };
+}
+
+/**
+ * One `ToyStore` per branch. `ToyStore` is a Schema.org subtype of
+ * LocalBusiness, which is what makes an address, phone and opening hours
+ * eligible to appear in a local result rather than just a plain blue link.
+ */
+export function storesJsonLd(siteUrl: string) {
+  return BRANCHES.map((branch) => ({
+    "@context": "https://schema.org",
+    "@type": "ToyStore",
+    "@id": `${siteUrl}/#store-${branch.id}`,
+    name: branch.venue ? `${BRAND} — ${branch.venue}, ${branch.locality}` : `${BRAND} — ${branch.locality}`,
+    alternateName: BRAND_ALIASES,
+    url: siteUrl,
+    logo: `${siteUrl}/icon-512.png`,
+    image: `${siteUrl}/og-image.jpg`,
+    description: DESCRIPTION,
+    priceRange: PRICE_RANGE,
+    currenciesAccepted: "INR",
+    telephone: TELEPHONE,
+    parentOrganization: { "@id": `${siteUrl}/#org` },
+    address: {
+      "@type": "PostalAddress",
+      // Omitted rather than invented for a branch whose street is unknown.
+      ...(branch.venue ? { streetAddress: branch.venue } : {}),
+      addressLocality: branch.locality,
+      addressRegion: branch.region,
+      addressCountry: branch.country,
+    },
+    areaServed: [
+      { "@type": "City", name: branch.locality },
       { "@type": "State", name: "Tamil Nadu" },
       { "@type": "Country", name: "India" },
     ],
@@ -160,7 +210,7 @@ export function storeJsonLd(siteUrl: string) {
       },
       { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "10:00", closes: "18:00" },
     ],
-  };
+  }));
 }
 
 /**
@@ -175,7 +225,7 @@ export function websiteJsonLd(siteUrl: string) {
     name: BRAND,
     alternateName: BRAND_ALIASES,
     url: siteUrl,
-    publisher: { "@id": `${siteUrl}/#store` },
+    publisher: { "@id": `${siteUrl}/#org` },
     potentialAction: {
       "@type": "SearchAction",
       target: {

@@ -9,7 +9,8 @@ import {
   KEYWORDS,
   TITLE_DEFAULT,
   TITLE_TEMPLATE,
-  storeJsonLd,
+  organizationJsonLd,
+  storesJsonLd,
   websiteJsonLd,
 } from "./seo";
 
@@ -93,11 +94,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* The shop as a local business, and the site as a searchable entity. */}
+        {/* The company, each branch as its own local business, and the site
+            itself as a searchable entity. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(storeJsonLd(APP_URL)) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(APP_URL)) }}
         />
+        {storesJsonLd(APP_URL).map((store) => (
+          <script
+            key={store["@id"]}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(store) }}
+          />
+        ))}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd(APP_URL)) }}
