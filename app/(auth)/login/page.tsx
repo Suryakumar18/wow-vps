@@ -20,13 +20,6 @@ function validMobile(raw: string): boolean {
   return false;
 }
 
-/** Staggered entrance shared by every block on the card. */
-const rise = (delay: number) => ({
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, delay, ease: "easeOut" as const },
-});
-
 /**
  * Sign in — the single portal for customers and admins alike.
  *
@@ -85,15 +78,13 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <motion.div {...rise(0)} className="flex flex-col items-center text-center">
-        <motion.span
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18 }}
-        >
-          <BrandMark className="h-11 w-11" />
-        </motion.span>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <div className="flex flex-col items-center text-center">
+        <BrandMark className="h-11 w-11" />
         <p className="mt-4 text-nano font-bold uppercase tracking-[0.2em] text-gold-600">
           Welcome back
         </p>
@@ -101,34 +92,30 @@ export default function LoginPage() {
         <p className="mt-1.5 text-micro text-slate-500">
           Use your mobile number and password to continue
         </p>
-      </motion.div>
+      </div>
 
       <form onSubmit={onSubmit} noValidate className="mt-7 flex flex-col gap-4">
-        <motion.div {...rise(0.08)}>
-          <TextField
-            label="Mobile number or email"
-            type="text"
-            autoComplete="username"
-            placeholder="Mobile Number"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            error={errors.identifier}
-          />
-        </motion.div>
+        <TextField
+          label="Mobile number or email"
+          type="text"
+          autoComplete="username"
+          placeholder="Mobile Number"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          error={errors.identifier}
+        />
 
-        <motion.div {...rise(0.14)}>
-          <TextField
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-          />
-        </motion.div>
+        <TextField
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errors.password}
+        />
 
-        <motion.div {...rise(0.2)} className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <Checkbox label="Remember Me" name="remember" />
           <Link
             href="/login"
@@ -136,27 +123,21 @@ export default function LoginPage() {
           >
             Forgot Password?
           </Link>
-        </motion.div>
+        </div>
 
-        <motion.div {...rise(0.26)}>
-          <Button type="submit" size="md" disabled={pending} className="mt-1 w-full">
-            {pending ? "Signing in…" : "Login"}
-          </Button>
-        </motion.div>
+        <Button type="submit" size="md" disabled={pending} className="mt-1 w-full">
+          {pending ? "Signing in…" : "Login"}
+        </Button>
 
-        {/* Keyed on the message so a repeat failure shakes again. */}
-        <motion.p
-          key={notice ?? "no-notice"}
+        <p
           aria-live="polite"
-          animate={notice ? { x: [0, -7, 7, -4, 4, 0] } : {}}
-          transition={{ duration: 0.4 }}
           className="min-h-[1.25rem] text-center text-nano font-semibold text-[#B91C1C]"
         >
           {notice}
-        </motion.p>
+        </p>
       </form>
 
-      <motion.p {...rise(0.32)} className="mt-5 text-center text-micro text-slate-500">
+      <p className="mt-5 text-center text-micro text-slate-500">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
@@ -164,7 +145,7 @@ export default function LoginPage() {
         >
           Register Now
         </Link>
-      </motion.p>
-    </>
+      </p>
+    </motion.div>
   );
 }
