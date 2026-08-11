@@ -10,6 +10,7 @@ import Badge from "../ui/Badge";
 import { useWishlistIds } from "../WishlistButton";
 import { allCategories } from "../data/home-content";
 import { cn } from "../lib/cn";
+import { useCurrentUser } from "../lib/useCurrentUser";
 
 type Tab = {
   key: string;
@@ -53,9 +54,13 @@ const TABS: Tab[] = [
 export default function BottomNav() {
   const pathname = usePathname();
   const wishlist = useWishlistIds();
+  const user = useCurrentUser();
   const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   const activeIndex = categoriesOpen ? 1 : TABS.findIndex((t) => t.match?.(pathname));
+
+  /** Signed-in customers land on their orders, guests on the login page. */
+  const hrefFor = (tab: Tab) => (tab.key === "account" && user ? "/orders" : tab.href);
 
   return (
     <>
@@ -117,7 +122,7 @@ export default function BottomNav() {
             ) : (
               <Link
                 key={tab.key}
-                href={tab.href}
+                href={hrefFor(tab) ?? "/"}
                 aria-current={active ? "page" : undefined}
                 className={classes}
               >

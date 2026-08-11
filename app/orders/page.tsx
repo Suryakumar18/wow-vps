@@ -18,6 +18,7 @@ import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
 import { formatPrice } from "@/app/components-home/lib/format";
 import { cn } from "@/app/components-home/lib/cn";
+import { useCurrentUser } from "@/app/components-home/lib/useCurrentUser";
 
 const TABS: { key: "all" | OrderStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -38,6 +39,9 @@ const PHONE_LOOKUP_STORAGE = "orders-lookup-phone";
  */
 export default function OrdersPage() {
   const router = useRouter();
+  // null = guest, undefined = still resolving. Signed-in customers see their
+  // account's orders directly — the phone lookup is guest-only chrome.
+  const user = useCurrentUser();
   const [sessionOrders, setSessionOrders] = useState<Order[] | null>(null);
   const [lookupOrders, setLookupOrders] = useState<Order[] | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
@@ -58,8 +62,10 @@ export default function OrdersPage() {
 
   // If the shopper looked up by phone earlier in this browser, remember it and
   // auto-run the search on next visit — losing the list on every reload would
-  // defeat the point of the lookup for a returning guest.
+  // defeat the point of the lookup for a returning guest. Guests only: a
+  // signed-in customer's orders come from their account, not a phone search.
   useEffect(() => {
+    if (user !== null) return;
     const saved = typeof window !== "undefined" ? localStorage.getItem(PHONE_LOOKUP_STORAGE) : null;
     if (!saved) return;
     setLookupPhone(saved);
@@ -68,7 +74,7 @@ export default function OrdersPage() {
       setLookupOrders(rows);
       setLookupState("done");
     });
-  }, []);
+  }, [user]);
 
   const runLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,8 +112,10 @@ export default function OrdersPage() {
   // the new order listed twice.
   const merged = mergeById(sessionOrders ?? [], lookupOrders ?? []);
   const filtered = merged.filter((o) => tab === "all" || o.status === tab);
+  // Guests with an empty session get the phone lookup; signed-in customers
+  // never do — their account is the lookup.
   const showLookupForm =
-    sessionOrders !== null && sessionOrders.length === 0 && lookupOrders === null;
+    user === null && sessionOrders !== null && sessionOrders.length === 0 && lookupOrders === null;
 
   return (
     <>

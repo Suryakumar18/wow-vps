@@ -664,22 +664,6 @@ export const authAside = {
 /* Cart & checkout                                                      */
 /* ------------------------------------------------------------------ */
 
-/** Saved delivery addresses. Replace with the customer's real address book. */
-export const savedAddresses = [
-  {
-    id: "home",
-    label: "Home",
-    line: "123, Green Street, Anna Nagar, Chennai - 600040, Tamil Nadu",
-    phone: "+91 91500 12245",
-  },
-  {
-    id: "work",
-    label: "Work",
-    line: "Unit 4, Tidel Park, Taramani, Chennai - 600113, Tamil Nadu",
-    phone: "+91 91500 12245",
-  },
-] as const;
-
 /** Coupons the showcase cart will accept. */
 export const coupons = [
   { code: "WOW10", percentOff: 10, minOrder: 1499 },

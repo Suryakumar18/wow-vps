@@ -6,6 +6,7 @@ import { ChevronDown, Crown, Package, PhoneCall, User, X } from "lucide-react";
 import { BrandMark } from "./ui/BrandLogo";
 import { announcement, brand, navItems as defaultNavItems, type NavItem } from "./data/home-content";
 import { cn } from "./lib/cn";
+import { useCurrentUser } from "./lib/useCurrentUser";
 
 /**
  * Off-canvas navigation for tablet and phone. Mirrors the desktop department
@@ -22,6 +23,7 @@ export default function MobileMenu({
 }) {
   const navItems = items;
   const [expanded, setExpanded] = useState<string | null>(null);
+  const user = useCurrentUser();
 
   // Lock body scroll and wire Escape while the drawer is open.
   useEffect(() => {
@@ -149,12 +151,12 @@ export default function MobileMenu({
             My Orders
           </Link>
           <Link
-            href="/login"
+            href={user ? "/orders" : "/login"}
             onClick={onClose}
             className="flex h-nav-control-md items-center justify-center gap-u-2 rounded-md border border-line text-nav-ui font-semibold text-ink transition-colors hover:bg-mist"
           >
             <User size={14} aria-hidden="true" />
-            Sign In / Register
+            <span className="max-w-[12rem] truncate">{user ? user.name : "Sign In / Register"}</span>
           </Link>
           <Link
             href="/"

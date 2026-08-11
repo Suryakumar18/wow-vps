@@ -1,12 +1,10 @@
 "use client";
 
-import { savedAddresses } from "../data/home-content";
-
 export interface Address {
   id: string;
-  label: string;
-  /** Absent on the two seeded demo addresses, which predate this field. */
+  /** Absent on legacy rows created before this field existed. */
   name?: string;
+  label: string;
   line: string;
   phone: string;
 }
@@ -22,15 +20,15 @@ export interface NewAddressInput {
 }
 
 /**
- * Address book — backed by Postgres via `/api/addresses`, scoped to this
- * browser's session cookie until checkout claims it for a guest customer or
- * account.
+ * Address book — backed by Postgres via `/api/addresses`. Rows belong to the
+ * signed-in account when there is one, and to this browser's session cookie
+ * otherwise (checkout later claims session rows for the guest customer).
  *
  * `getAddresses`/`addAddress` stay synchronous so existing callers (Cart,
  * Checkout) don't need to restructure around a promise: reads serve the
- * seeded addresses immediately plus whatever's in the in-memory cache, which
- * is refreshed from the server in the background and broadcast via
- * `addressesChange` — the same event-driven pattern `wishlist.ts` uses.
+ * in-memory cache, which is refreshed from the server in the background and
+ * broadcast via `addressesChange` — the same event-driven pattern
+ * `wishlist.ts` uses.
  */
 
 let cache: Address[] = [];
@@ -46,8 +44,7 @@ function ensureLoaded() {
   inFlight = fetch("/api/addresses")
     .then((res) => (res.ok ? (res.json() as Promise<Address[]>) : []))
     .then((all) => {
-      // Server response already includes the seeded addresses up front.
-      cache = all.filter((a) => !savedAddresses.some((seeded) => seeded.id === a.id));
+      cache = all;
       broadcast();
     })
     .catch(() => {
@@ -60,9 +57,9 @@ function ensureLoaded() {
 }
 
 export function getAddresses(): Address[] {
-  if (typeof window === "undefined") return [...savedAddresses];
+  if (typeof window === "undefined") return [];
   ensureLoaded();
-  return [...savedAddresses, ...cache];
+  return [...cache];
 }
 
 export function addAddress(input: NewAddressInput): Address[] {
@@ -87,7 +84,7 @@ export function addAddress(input: NewAddressInput): Address[] {
     .then((res) => (res.ok ? (res.json() as Promise<Address[]>) : null))
     .then((all) => {
       if (all) {
-        cache = all.filter((a) => !savedAddresses.some((seeded) => seeded.id === a.id));
+        cache = all;
         broadcast();
       }
     })
@@ -96,5 +93,5 @@ export function addAddress(input: NewAddressInput): Address[] {
       broadcast();
     });
 
-  return [...savedAddresses, ...cache];
+  return [...cache];
 }

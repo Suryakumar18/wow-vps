@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { getOrCreateSessionId } from "./session";
-import { savedAddresses } from "@/app/components-home/data/home-content";
+import { getCurrentUser } from "./auth";
 import type { Address, NewAddressInput } from "@/app/components-home/lib/addresses";
 
 function toAddress(row: {
@@ -23,20 +23,27 @@ function toAddress(row: {
   };
 }
 
+/**
+ * Signed-in customers see their account's addresses plus anything saved in
+ * this browser session before they logged in; guests see the session's only.
+ */
 export async function getAddressesDb(): Promise<Address[]> {
-  const sessionId = await getOrCreateSessionId();
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
   const rows = await prisma.address.findMany({
-    where: { sessionId },
+    where: user ? { OR: [{ userId: user.id }, { sessionId }] } : { sessionId },
     orderBy: { createdAt: "asc" },
   });
-  return [...savedAddresses, ...rows.map(toAddress)];
+  return rows.map(toAddress);
 }
 
 export async function addAddressDb(input: NewAddressInput): Promise<Address[]> {
-  const sessionId = await getOrCreateSessionId();
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
   await prisma.address.create({
     data: {
       sessionId,
+      // Owned by the account when signed in, so it follows the customer to
+      // their next device instead of dying with this browser's cookie.
+      userId: user?.id ?? null,
       label: input.label.trim() || "Address",
       name: input.fullName.trim(),
       phone: input.phone.trim(),

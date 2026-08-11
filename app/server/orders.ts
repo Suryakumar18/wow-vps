@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { getOrCreateSessionId } from "./session";
+import { getCurrentUser } from "./auth";
 import { notify } from "./notifications";
 import { sendOrderPlacedWhatsApp } from "./whatsapp";
 import { formatPrice } from "@/app/components-home/lib/format";
@@ -51,10 +52,14 @@ function generateOrderNumber(): string {
   return `WOW${digits}`;
 }
 
+/**
+ * Signed-in customers see their account's orders (any device) plus anything
+ * this browser session placed before they logged in; guests see the session's.
+ */
 export async function getOrdersDb(): Promise<Order[]> {
-  const sessionId = await getOrCreateSessionId();
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
   const rows = await prisma.order.findMany({
-    where: { sessionId },
+    where: user ? { OR: [{ userId: user.id }, { sessionId }] } : { sessionId },
     include: orderInclude,
     orderBy: { placedAt: "desc" },
   });
@@ -62,14 +67,12 @@ export async function getOrdersDb(): Promise<Order[]> {
 }
 
 export async function getOrderDb(orderNumber: string): Promise<Order | null> {
-  const sessionId = await getOrCreateSessionId();
-  // A guest looking up by phone won't own the session that placed the order,
-  // so also allow orders whose shipping-address phone matches one previously
-  // proven on this session. We can't verify possession without OTP, so the
-  // simplest safe fallback is: same session OR same phone as another matched
-  // order (looked up + stored client-side, sent as a query param when needed).
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
   const row = await prisma.order.findFirst({
-    where: { orderNumber, sessionId },
+    where: {
+      orderNumber,
+      ...(user ? { OR: [{ userId: user.id }, { sessionId }] } : { sessionId }),
+    },
     include: orderInclude,
   });
   return row ? toOrder(row) : null;
@@ -116,9 +119,9 @@ export async function getOrderByNumberForPhoneDb(
 }
 
 export async function getLastOrderDb(): Promise<Order | null> {
-  const sessionId = await getOrCreateSessionId();
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
   const row = await prisma.order.findFirst({
-    where: { sessionId },
+    where: user ? { OR: [{ userId: user.id }, { sessionId }] } : { sessionId },
     include: orderInclude,
     orderBy: { placedAt: "desc" },
   });
@@ -148,7 +151,7 @@ export async function createOrderDb(input: {
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
 }): Promise<Order> {
-  const sessionId = await getOrCreateSessionId();
+  const [sessionId, user] = await Promise.all([getOrCreateSessionId(), getCurrentUser()]);
 
   // Resolve each cart item's slug back to a real Product row so the order
   // item can still link to it; the display fields below are snapshotted
@@ -161,6 +164,9 @@ export async function createOrderDb(input: {
     data: {
       orderNumber: generateOrderNumber(),
       sessionId,
+      // Tied to the account when the shopper is signed in, so "My Orders"
+      // finds it from any of their devices, not just this browser.
+      userId: user?.id ?? null,
       status: "PROCESSING",
       deliveryMethod: input.deliveryMethod.toUpperCase() as Prisma.OrderCreateInput["deliveryMethod"],
       paymentMethodLabel: input.paymentMethodLabel,

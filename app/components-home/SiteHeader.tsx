@@ -12,6 +12,7 @@ import MobileMenu from "./MobileMenu";
 import { WishlistLink } from "./WishlistButton";
 import AnnouncementBar from "./AnnouncementBar";
 import { cn } from "./lib/cn";
+import { useCurrentUser } from "./lib/useCurrentUser";
 
 /**
  * Site chrome: announcement bar, utility header and primary nav.
@@ -107,13 +108,7 @@ export default function SiteHeader({
                 <span className="hidden text-nav-ui font-medium xl:inline">My Orders</span>
               </Link>
 
-              <Link
-                href="/login"
-                className="hidden min-h-11 min-w-11 items-center justify-center gap-u-2 text-ink transition-colors hover:text-gold-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-600 sm:flex xl:min-w-0"
-              >
-                <User size={18} strokeWidth={1.75} aria-hidden="true" />
-                <span className="hidden text-nav-ui font-medium xl:inline">Sign In / Register</span>
-              </Link>
+              <AccountLink />
 
               <Link
                 href="/"
@@ -136,5 +131,27 @@ export default function SiteHeader({
 
       <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} items={navItems} />
     </>
+  );
+}
+
+/**
+ * "Sign In / Register" for guests; the customer's first name once signed in,
+ * linking to their orders. Auth state comes from the shared client-side
+ * cache (`useCurrentUser`), so the prerendered pages this header sits on
+ * stay static — no cookies are read during server render.
+ */
+function AccountLink() {
+  const user = useCurrentUser();
+
+  return (
+    <Link
+      href={user ? "/orders" : "/login"}
+      className="hidden min-h-11 min-w-11 items-center justify-center gap-u-2 text-ink transition-colors hover:text-gold-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-600 sm:flex xl:min-w-0"
+    >
+      <User size={18} strokeWidth={1.75} aria-hidden="true" />
+      <span className="hidden max-w-[9rem] truncate text-nav-ui font-medium xl:inline">
+        {user ? user.name.split(" ")[0] : "Sign In / Register"}
+      </span>
+    </Link>
   );
 }

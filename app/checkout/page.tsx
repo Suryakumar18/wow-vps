@@ -13,7 +13,6 @@ import { deliveryMethods, paymentMethods } from "@/app/components-home/data/home
 import Container from "@/app/components-home/ui/Container";
 import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
-import BottomSheet from "@/app/components-home/ui/BottomSheet";
 import Stepper from "@/app/components-home/ui/Stepper";
 import Icon, { type IconName } from "@/app/components-home/ui/Icon";
 import { formatPrice } from "@/app/components-home/lib/format";
@@ -63,7 +62,6 @@ export default function CheckoutPage() {
     window.addEventListener("addressesChange", onChange);
     return () => window.removeEventListener("addressesChange", onChange);
   }, []);
-  const [addAddressOpen, setAddAddressOpen] = useState(false);
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodId>("standard");
   const [paymentMethodId, setPaymentMethodId] = useState<string>(paymentMethods[0]?.id ?? "upi");
@@ -200,7 +198,10 @@ export default function CheckoutPage() {
                 addresses={addresses}
                 selectedId={addressId}
                 onSelect={setSelectedAddressId}
-                onAddNew={() => setAddAddressOpen(true)}
+                onSaved={(nextAddresses, newId) => {
+                  setAddresses(nextAddresses);
+                  setSelectedAddressId(newId);
+                }}
                 onContinue={() => setStep(1)}
               />
             )}
@@ -283,19 +284,6 @@ export default function CheckoutPage() {
         </div>
       </Container>
 
-      <BottomSheet
-        open={addAddressOpen}
-        onClose={() => setAddAddressOpen(false)}
-        title="Add new address"
-      >
-        <NewAddressForm
-          onSaved={(nextAddresses, newId) => {
-            setAddresses(nextAddresses);
-            setSelectedAddressId(newId);
-            setAddAddressOpen(false);
-          }}
-        />
-      </BottomSheet>
     </>
   );
 }
@@ -309,23 +297,33 @@ function AddressStep({
   addresses,
   selectedId,
   onSelect,
-  onAddNew,
+  onSaved,
   onContinue,
 }: {
   headingRef: React.MutableRefObject<HTMLHeadingElement | null>;
   addresses: Address[];
   selectedId: string;
   onSelect: (id: string) => void;
-  onAddNew: () => void;
+  onSaved: (addresses: Address[], newId: string) => void;
   onContinue: () => void;
 }) {
   const headingId = "checkout-step-address";
+  const hasAddresses = addresses.length > 0;
+  // The form renders inline (not in a drawer, which is mobile-only chrome):
+  // always when there's nothing saved yet, on demand otherwise.
+  const [formOpen, setFormOpen] = useState(false);
+  const showForm = !hasAddresses || formOpen;
 
   return (
     <div>
       <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-ui font-bold text-ink outline-none">
         Shipping Address
       </h2>
+      {!hasAddresses && (
+        <p className="mt-1 text-micro text-slate-500">
+          Enter your delivery details — the mobile number and pincode are used for delivery updates.
+        </p>
+      )}
 
       <ul role="radiogroup" aria-labelledby={headingId} className="mt-3 flex flex-col gap-2.5">
         {addresses.map((a) => (
@@ -367,14 +365,41 @@ function AddressStep({
         ))}
       </ul>
 
-      <button
-        type="button"
-        onClick={onAddNew}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line py-3 text-micro font-semibold text-gold-600 transition-colors hover:border-gold-400 hover:bg-gold-50"
-      >
-        <Plus size={14} aria-hidden="true" />
-        Add New Address
-      </button>
+      {showForm ? (
+        <div className={cn("rounded-xl border border-line p-4", hasAddresses && "mt-3")}>
+          <div className="flex items-center justify-between">
+            <p className="text-micro font-bold text-ink">
+              {hasAddresses ? "New address" : "Delivery address"}
+            </p>
+            {hasAddresses && (
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="text-nano font-semibold text-slate-500 transition-colors hover:text-ink"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+          <div className="mt-3">
+            <NewAddressForm
+              onSaved={(nextAddresses, newId) => {
+                onSaved(nextAddresses, newId);
+                setFormOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setFormOpen(true)}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line py-3 text-micro font-semibold text-gold-600 transition-colors hover:border-gold-400 hover:bg-gold-50"
+        >
+          <Plus size={14} aria-hidden="true" />
+          Add New Address
+        </button>
+      )}
 
       <Button
         onClick={onContinue}
