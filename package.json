@@ -20,7 +20,8 @@
     "admin:create": "tsx prisma/create-admin.ts",
     "products:import": "tsx prisma/import-products.ts",
     "products:generate": "tsx prisma/generate-catalog.ts",
-    "products:remove-generated": "tsx prisma/remove-generated-products.ts"
+    "products:remove-generated": "tsx prisma/remove-generated-products.ts",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductDb, getRelatedDb } from "@/app/server/catalog";
 import ProductDetailClient from "./ProductDetailClient";
+import { BRAND } from "@/app/seo";
 
 interface Props {
   params: Promise<{ productId: string }>;
@@ -35,14 +36,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Product not found", robots: { index: false, follow: false } };
   }
 
-  const description = product.description.slice(0, 160);
+  // A product with no copy of its own still needs a description that says
+  // what it is and where it ships from, or the search result is a bare title.
+  const description = product.description.trim()
+    ? product.description.slice(0, 160)
+    : `Buy ${product.title} by ${product.brand} at ${BRAND}, Texvalley, Erode. ` +
+      `Genuine stock, fast delivery across Tamil Nadu and India.`;
 
   return {
     title: product.title,
     description,
     alternates: { canonical: `/product/${productId}` },
     openGraph: {
-      title: `${product.title} | WOW Lifestyle Thuriur`,
+      type: "website",
+      title: `${product.title} — ${BRAND}`,
       description,
       url: `/product/${productId}`,
       ...(product.images[0]
@@ -85,6 +92,8 @@ export default async function ProductDetailPage({ params }: Props) {
             name: product.title,
             description: product.description,
             image: product.images,
+            sku: productId,
+            category: product.categoryId,
             brand: { "@type": "Brand", name: product.brand },
             ...(product.numReviews > 0 && product.rating > 0
               ? {
@@ -99,10 +108,15 @@ export default async function ProductDetailPage({ params }: Props) {
               "@type": "Offer",
               price: product.price,
               priceCurrency: "INR",
+              itemCondition: "https://schema.org/NewCondition",
+              url: `/product/${productId}`,
               availability:
                 product.totalStock > 0
                   ? "https://schema.org/InStock"
                   : "https://schema.org/OutOfStock",
+              // Named seller: this is what ties a product result back to the
+              // shop entity declared in the root layout.
+              seller: { "@type": "Organization", name: BRAND },
             },
           }),
         }}

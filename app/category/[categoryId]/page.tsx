@@ -15,6 +15,7 @@ import {
   type CategoryMeta,
 } from "@/app/server/catalog";
 import type { CatalogQuery } from "@/app/components-home/data/catalog";
+import { BRAND } from "@/app/seo";
 
 interface Props {
   params: Promise<{ categoryId: string }>;
@@ -54,20 +55,24 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // term — useful to a shopper, not something to put in an index.
   if (q?.trim()) {
     return {
-      title: `Search: ${q.trim()} | WOW Lifestyle Thuriur`,
+      // The layout's title template appends the brand, so these titles must
+      // not carry it themselves or it lands in the tab twice.
+      title: `Search: ${q.trim()}`,
       robots: { index: false, follow: true },
     };
   }
 
-  const description = `Browse our ${meta.title} collection at WOW Lifestyle Thuriur. Premium toys, diecast models, RC cars, LEGO, and collectibles with fast delivery across India.`;
+  const description =
+    `Shop ${meta.title} at ${BRAND}, Texvalley, Erode — hobby-grade RC cars, drones, ` +
+    `bikes and toys for kids and adults. Fast delivery across Tamil Nadu and all India.`;
 
   return {
-    title: `${meta.title} | Shop at WOW Lifestyle Thuriur`,
+    title: `${meta.title} — Buy Online in Erode`,
     description,
     alternates: { canonical: `/category/${categoryId}` },
     openGraph: {
-      title: `${meta.title} | WOW Lifestyle Thuriur`,
-      description: `Shop ${meta.title} at WOW Lifestyle Thuriur — India's premier toy store.`,
+      title: `${meta.title} — ${BRAND}, Texvalley Erode`,
+      description,
       url: `/category/${categoryId}`,
       ...(meta.imageUrl ? { images: [{ url: meta.imageUrl, alt: meta.imageAlt }] } : {}),
     },

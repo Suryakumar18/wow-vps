@@ -33,7 +33,7 @@ export const announcement = {
 
 export const brand = {
   name: "WOWLIFESTYLE",
-  location: "THURAIUR",
+  location: "TEXVALLEY, ERODE",
   tagline: "Toys for Every Dream",
   searchPlaceholder: "Search for RC cars, toy drones, models, games, building sets...",
 } as const;
@@ -578,8 +578,13 @@ export const newsletter = {
 /* ------------------------------------------------------------------ */
 
 export const footer = {
+  // Visible page text, not just meta tags: the shop's name, what it sells and
+  // where it trades from are what a search engine actually reads to decide
+  // that "toy shop in Erode" should return this store.
   about:
-    "Your one-stop destination for RC cars, toy drones, hobby models, games, building sets and more. Play. Build. Explore.",
+    "WOW Lifestyle at Texvalley, Erode, Tamil Nadu — your one-stop destination for " +
+    "hobby-grade RC cars, jeeps and bikes, toy drones, hobby models, games, building " +
+    "sets and soft toys for kids and adults. Delivered all over India. Play. Build. Explore.",
   columns: [
     {
       title: "Quick Links",
@@ -621,7 +626,7 @@ export const footer = {
     title: "We Accept",
     methods: ["VISA", "Mastercard", "UPI", "Paytm", "GPay", "PhonePe"],
   },
-  legal: "© 2024 WOWLifestyle Thuraiur. All rights reserved.",
+  legal: "© 2026 WOW Lifestyle, Texvalley, Erode, Tamil Nadu. All rights reserved.",
   meta: ["Play. Build. Explore.", "#WOWLifestyle"],
 } as const;
 
