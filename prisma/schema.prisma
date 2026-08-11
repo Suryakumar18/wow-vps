@@ -189,6 +189,11 @@ model Product {
   rating        Float    @default(0)
   numReviews    Int      @default(0)
   description   String
+  /// Long-form product details in the storefront's light markup: `## ` opens
+  /// a section heading, `- ` a bullet, a bare image URL renders the image,
+  /// anything else is a paragraph. Parsed by app/components-home/RichText.tsx
+  /// — never raw HTML, so nothing an admin pastes can inject script.
+  richDescription String @default("")
   aboutFeatures String[]
   idealFor      String[]
   isPublished   Boolean  @default(true)

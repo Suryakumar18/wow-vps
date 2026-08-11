@@ -13,6 +13,7 @@ interface ProductBody {
   shippingFee?: number;
   gstPercent?: number;
   description?: string;
+  richDescription?: string;
   categoryId?: string;
   subcategoryId?: string | null;
   brandId?: string;
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
       shippingFee: body.shippingFee ?? 0,
       gstPercent: body.gstPercent ?? 0,
       description: body.description ?? "",
+      richDescription: body.richDescription ?? "",
       categoryId: body.categoryId,
       subcategoryId: body.subcategoryId ?? null,
       brandId: body.brandId,

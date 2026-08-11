@@ -30,6 +30,9 @@ export interface CatalogProduct {
   rating: number;
   numReviews: number;
   description: string;
+  /** Long-form details in the light markup RichText.tsx renders. Absent on
+   *  the static showcase items, which predate the field. */
+  richDescription?: string;
   aboutFeatures: string[];
   idealFor: string[];
   /** Available colour options. `hex` is the swatch colour picked in admin;

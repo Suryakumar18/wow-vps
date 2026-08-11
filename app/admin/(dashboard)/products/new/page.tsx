@@ -34,6 +34,7 @@ export default async function NewProductPage() {
           originalPrice: "",
           totalStock: "0",
           description: "",
+          richDescription: "",
           categoryId: "",
           subcategoryId: "",
           brandId: "",

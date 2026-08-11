@@ -23,6 +23,7 @@ import Rating from "@/app/components-home/ui/Rating";
 import Icon, { type IconName } from "@/app/components-home/ui/Icon";
 import BottomSheet from "@/app/components-home/ui/BottomSheet";
 import ProductCard from "@/app/components-home/ProductCard";
+import RichText from "@/app/components-home/RichText";
 import { formatPrice } from "@/app/components-home/lib/format";
 import {
   productAssurances,
@@ -504,6 +505,12 @@ export default function ProductDetailClient({ product, related }: Props) {
                   {product.description}
                 </p>
               </div>
+            )}
+
+            {/* Long-form write-up (sections, bullets, images) authored in the
+                admin's "Detailed description" editor. */}
+            {product.richDescription?.trim() && (
+              <RichText text={product.richDescription} className="mt-5" />
             )}
 
             {specs.length > 0 && (

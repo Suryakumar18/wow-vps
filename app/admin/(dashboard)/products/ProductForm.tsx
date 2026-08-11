@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Boxes, FileText, ImageIcon, IndianRupee, Palette, Plus, Trash2, Truck } from "lucide-react";
 import Button from "@/app/components-home/ui/Button";
+import RichText from "@/app/components-home/RichText";
 import { formatPrice } from "@/app/components-home/lib/format";
 import { cn } from "@/app/components-home/lib/cn";
 import { Field, Input, Select, Textarea, FormError } from "../ui";
@@ -33,6 +34,9 @@ export interface ProductFormValues {
   /** One entry per line in the textarea. */
   aboutFeatures: string;
   idealFor: string;
+  /** Long-form details in the storefront's light markup — `## ` heading,
+   *  `- ` bullet, bare image URL, else paragraph (see RichText.tsx). */
+  richDescription: string;
   /** Each colour carries a swatch hex + its own gallery. Empty images = no
    *  gallery swap when the shopper picks that colour. */
   colors: { name: string; hex: string; images: string[] }[];
@@ -221,6 +225,7 @@ export default function ProductForm({
       // Storing 0 disables GST server-side, so an off-toggle is a plain 0.
       gstPercent: values.gstEnabled ? gstPercentNum : 0,
       description: values.description.trim(),
+      richDescription: values.richDescription.trim(),
       categoryId: values.categoryId,
       subcategoryId: values.subcategoryId || null,
       brandId: values.brandId,
@@ -606,6 +611,37 @@ export default function ProductForm({
               onChange={(e) => set("description", e.target.value)}
               placeholder="A 1:10 scale four-wheel-drive monster truck built for rough ground…"
             />
+          </Field>
+
+          <Field label="Detailed description — with live preview" className="md:col-span-2">
+            <p className="mb-2 text-nano text-slate-500">
+              Paste or type the full product write-up. Start a line with{" "}
+              <code className="rounded bg-mist px-1">##</code> for a section heading,{" "}
+              <code className="rounded bg-mist px-1">-</code> for a bullet point (in bullets,
+              words before a dash or colon turn bold automatically — e.g.{" "}
+              <code className="rounded bg-mist px-1">- Motor: Brushed</code>), or paste an image
+              URL on its own line to show the image. Everything else becomes a paragraph.
+            </p>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Textarea
+                value={values.richDescription}
+                onChange={(e) => set("richDescription", e.target.value)}
+                rows={16}
+                placeholder={
+                  "## Overview\nA high-performance 1:10 rock crawler built for hobbyists…\n\n## Key Features\n- Two-Speed Transmission – switch between crawl torque and trail speed\n- Portal Axles – extra ground clearance on rocks\n- LED Lighting – working head and tail lights\n\n## Specifications\n- Scale: 1/10\n- Motor: Brushed\n- Remote Range: 80–100 m"
+                }
+              />
+              <div className="max-h-96 overflow-y-auto rounded-lg border border-line bg-white p-4">
+                {values.richDescription.trim() ? (
+                  <RichText text={values.richDescription} />
+                ) : (
+                  <p className="text-nano text-slate-400">
+                    Live preview — this panel shows exactly what shoppers will see on the
+                    product page as you type.
+                  </p>
+                )}
+              </div>
+            </div>
           </Field>
 
           <Field label="Highlights — one per line" className="md:col-span-2">

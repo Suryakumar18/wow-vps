@@ -93,6 +93,7 @@ const toProduct = (p: DetailRow): CatalogProduct => ({
   rating: p.rating,
   numReviews: p.numReviews,
   description: p.description,
+  richDescription: p.richDescription,
   aboutFeatures: p.aboutFeatures,
   idealFor: p.idealFor,
   colors: p.colors.map((c) => ({ name: c.name, hex: c.hex, images: c.images })),

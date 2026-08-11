@@ -11,6 +11,7 @@ interface ProductPatch {
   shippingFee?: number;
   gstPercent?: number;
   description?: string;
+  richDescription?: string;
   categoryId?: string;
   subcategoryId?: string | null;
   brandId?: string;
@@ -46,6 +47,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       shippingFee: body.shippingFee ?? undefined,
       gstPercent: body.gstPercent ?? undefined,
       description: body.description ?? undefined,
+      richDescription: body.richDescription ?? undefined,
       categoryId: body.categoryId ?? undefined,
       subcategoryId: body.subcategoryId === undefined ? undefined : body.subcategoryId,
       brandId: body.brandId ?? undefined,
