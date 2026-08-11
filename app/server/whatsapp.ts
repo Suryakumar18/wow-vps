@@ -182,8 +182,23 @@ export async function sendOrderPlacedWhatsApp(input: OrderNotificationInput): Pr
   }
 }
 
+/** Wording for the status template's {{3}} variable. */
+const STATUS_LABEL: Record<"SHIPPED" | "DELIVERED" | "CANCELLED", string> = {
+  SHIPPED: "Shipped and on the way",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
 /**
- * Order status update to the customer ("shipped", "delivered", "cancelled").
+ * Order status update to the customer ("shipped", "delivered", "cancelled"),
+ * sent to the mobile number on the order's delivery address.
+ *
+ * Template first, and it matters more here than anywhere else: a shopper who
+ * checked out as a guest has never messaged the store, so no 24-hour customer
+ * window is open and a free-form text is rejected outright. The text below is
+ * the fallback for the case where the template is missing or rejected — it
+ * still lands for anyone who has replied to us recently.
+ *
  * Never throws — a failed message must not fail the admin's status change.
  */
 export async function sendOrderStatusWhatsApp(input: {
@@ -195,6 +210,20 @@ export async function sendOrderStatusWhatsApp(input: {
   if (!whatsappConfigured()) return;
   const to = canonicalPhone(input.phone);
   if (!to) return;
+
+  const template = process.env.WHATSAPP_ORDER_STATUS_TEMPLATE;
+  if (template) {
+    try {
+      await sendWhatsAppTemplate(to, template, [
+        input.name?.trim() || "there",
+        input.orderNumber,
+        STATUS_LABEL[input.status],
+      ]);
+      return;
+    } catch (err) {
+      console.error("Order status template failed, trying free-form text:", err);
+    }
+  }
 
   const hello = input.name ? `Hi ${input.name}! ` : "";
   const messages: Record<typeof input.status, string> = {
