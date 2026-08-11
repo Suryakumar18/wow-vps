@@ -84,7 +84,10 @@ export async function GET(request: NextRequest) {
     // homepage will actually render, and silently truncating them would make
     // the picker disagree with the storefront.
     ...(selected ? {} : { take: limit, skip }),
-    orderBy: { title: "asc" },
+    // `id` breaks ties: the catalogue has titles shared by up to six products,
+    // and without a stable second sort key the skip/take pages the pickers
+    // scroll through can repeat one product and never show another.
+    orderBy: [{ title: "asc" }, { id: "asc" }],
     select: pickerSelect,
   });
 
