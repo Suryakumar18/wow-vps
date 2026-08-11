@@ -45,41 +45,62 @@ export default function OffersManager({ offers }: { offers: OfferRow[] }) {
   const [selected, setSelected] = useState<PickedProduct[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PickedProduct[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // Product list for the "selected products" scope: a default page of
-  // products appears as soon as the scope opens, and typing filters it
-  // (debounced so we don't query per keystroke).
+  const PICKER_PAGE = 10;
+
+  /** One page of the picker list; `replace` starts over (new search). */
+  const fetchProducts = async (skip: number, replace: boolean) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoadingMore(!replace);
+    try {
+      const q = query.trim();
+      const res = await fetch(
+        `/api/admin/products?limit=${PICKER_PAGE}&skip=${skip}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+      );
+      const body = res.ok ? await res.json() : { products: [] };
+      const page: PickedProduct[] = (body.products ?? []).map(
+        (p: { id: string; title: string; image?: string; price?: number }) => ({
+          id: p.id,
+          title: p.title,
+          image: p.image ?? "",
+          price: p.price,
+        }),
+      );
+      setResults((prev) => {
+        const base = replace ? [] : prev;
+        const seen = new Set(base.map((item) => item.id));
+        return [...base, ...page.filter((item) => !seen.has(item.id))];
+      });
+      setHasMore(page.length === PICKER_PAGE);
+    } catch {
+      if (replace) setResults([]);
+    } finally {
+      loadingRef.current = false;
+      setLoadingMore(false);
+    }
+  };
+
+  // Product list for the "selected products" scope: a default page appears
+  // as soon as the scope opens, typing filters it (debounced), and
+  // scrolling the list loads the next ten.
   useEffect(() => {
     if (scope !== "selected") {
       setResults([]);
+      setHasMore(false);
       return;
     }
     const q = query.trim();
-    const timer = setTimeout(
-      () => {
-        fetch(`/api/admin/products?limit=10${q ? `&q=${encodeURIComponent(q)}` : ""}`)
-          .then((res) => (res.ok ? res.json() : { products: [] }))
-          .then((body) =>
-            setResults(
-              (body.products ?? []).map(
-                (p: { id: string; title: string; image?: string; price?: number }) => ({
-                  id: p.id,
-                  title: p.title,
-                  image: p.image ?? "",
-                  price: p.price,
-                }),
-              ),
-            ),
-          )
-          .catch(() => setResults([]));
-      },
-      q ? 300 : 0,
-    );
+    const timer = setTimeout(() => void fetchProducts(0, true), q ? 300 : 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, scope]);
 
   const uploadBanner = async (file: File) => {
@@ -323,7 +344,19 @@ export default function OffersManager({ offers }: { offers: OfferRow[] }) {
             </div>
 
             {results.length > 0 && (
-              <ul className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-line bg-white">
+              <ul
+                className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-line bg-white"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (
+                    hasMore &&
+                    !loadingRef.current &&
+                    el.scrollTop + el.clientHeight >= el.scrollHeight - 48
+                  ) {
+                    void fetchProducts(results.length, false);
+                  }
+                }}
+              >
                 {results
                   .filter((r) => !selected.some((s) => s.id === r.id))
                   .map((product) => (
@@ -361,6 +394,11 @@ export default function OffersManager({ offers }: { offers: OfferRow[] }) {
                       </button>
                     </li>
                   ))}
+                {(loadingMore || hasMore) && (
+                  <li className="px-3 py-2 text-center text-nano text-slate-400">
+                    {loadingMore ? "Loading more…" : "Scroll for more products"}
+                  </li>
+                )}
               </ul>
             )}
 

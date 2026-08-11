@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
   const categoryId = sp.get("category") || undefined;
   const selected = sp.get("selected");
   const limit = Math.min(100, Math.max(1, Number(sp.get("limit")) || 50));
+  // Pickers page through the catalogue 10 at a time as the admin scrolls.
+  const skip = Math.max(0, Number(sp.get("skip")) || 0);
 
   const where: Prisma.ProductWhereInput = { isPublished: true };
   if (categoryId) where.categoryId = categoryId;
@@ -81,7 +83,7 @@ export async function GET(request: NextRequest) {
     // No `take` when listing what's already selected: those are the rows the
     // homepage will actually render, and silently truncating them would make
     // the picker disagree with the storefront.
-    ...(selected ? {} : { take: limit }),
+    ...(selected ? {} : { take: limit, skip }),
     orderBy: { title: "asc" },
     select: pickerSelect,
   });
