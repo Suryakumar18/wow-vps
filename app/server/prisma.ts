@@ -36,7 +36,16 @@ if (isStale) {
 
 export const prisma =
   (isStale ? undefined : globalForPrisma.prisma) ??
-  new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+  new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString: process.env.DATABASE_URL,
+      // The Supabase pooler caps concurrent clients; pg's default of 10 per
+      // instance lets dev + production + one-off scripts starve each other
+      // (EMAXCONNSESSION). Five per instance keeps three instances inside
+      // even a session-mode cap of 15.
+      max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+    }),
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

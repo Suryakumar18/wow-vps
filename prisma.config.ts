@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // The CLI (db push, migrate) needs a direct/session connection — DDL
+    // through the transaction pooler misbehaves. The app itself pools via
+    // DATABASE_URL (:6543); see app/server/prisma.ts.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

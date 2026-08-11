@@ -1,9 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Boxes, FileText, ImageIcon, IndianRupee, Palette, Plus, Trash2, Truck } from "lucide-react";
+import {
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Boxes,
+  FileText,
+  Heading2,
+  ImageIcon,
+  ImagePlus,
+  IndianRupee,
+  List,
+  Palette,
+  Plus,
+  Trash2,
+  Truck,
+} from "lucide-react";
 import Button from "@/app/components-home/ui/Button";
 import RichText from "@/app/components-home/RichText";
 import { formatPrice } from "@/app/components-home/lib/format";
@@ -171,6 +186,79 @@ export default function ProductForm({
 
   const set = <K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
+
+  /* ---- Detailed-description toolbar ------------------------------------ */
+  const richRef = useRef<HTMLTextAreaElement | null>(null);
+  const richImageInputRef = useRef<HTMLInputElement | null>(null);
+  const [richUploading, setRichUploading] = useState(false);
+
+  /** The lines covered by the current selection (or the cursor's line). */
+  const editRichLines = (transform: (line: string) => string) => {
+    const el = richRef.current;
+    if (!el) return;
+    const { selectionStart, selectionEnd, value } = el;
+    const start = value.lastIndexOf("\n", Math.max(selectionStart - 1, 0)) + 1;
+    let end = value.indexOf("\n", selectionEnd);
+    if (end === -1) end = value.length;
+    const updated = value.slice(start, end).split("\n").map(transform).join("\n");
+    set("richDescription", value.slice(0, start) + updated + value.slice(end));
+    requestAnimationFrame(() => el.focus());
+  };
+
+  /** Toggle `## ` / `- ` at the start of the selected lines. */
+  const toggleRichPrefix = (marker: string) =>
+    editRichLines((line) =>
+      line.startsWith(marker) ? line.slice(marker.length) : marker + line,
+    );
+
+  /** Toggle `[center]` / `[right]`, replacing any other alignment. */
+  const toggleRichAlign = (marker: "[center] " | "[right] ") =>
+    editRichLines((line) => {
+      const had = line.startsWith(marker);
+      const bare = line.replace(/^\[(left|center|right)\]\s*/i, "");
+      return had ? bare : marker + bare;
+    });
+
+  const wrapRichBold = () => {
+    const el = richRef.current;
+    if (!el) return;
+    const { selectionStart, selectionEnd, value } = el;
+    const selected = value.slice(selectionStart, selectionEnd) || "bold text";
+    set(
+      "richDescription",
+      `${value.slice(0, selectionStart)}**${selected}**${value.slice(selectionEnd)}`,
+    );
+    requestAnimationFrame(() => el.focus());
+  };
+
+  /** Uploads through the same pipeline as the gallery, then drops the URL in. */
+  const uploadRichImage = async (file: File) => {
+    setRichUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "products");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const body = await res.json().catch(() => null);
+      if (body?.success && body.url) {
+        setValues((prev) => ({
+          ...prev,
+          richDescription:
+            (prev.richDescription.trim()
+              ? `${prev.richDescription.replace(/\s+$/, "")}\n\n`
+              : "") + `[center] ${body.url}\n`,
+        }));
+      } else {
+        setError(body?.message ?? "Image upload failed — try again.");
+      }
+    } catch {
+      setError("Image upload failed — check your connection.");
+    } finally {
+      setRichUploading(false);
+    }
+  };
+  /* ---------------------------------------------------------------------- */
 
   const onTitleChange = (title: string) =>
     setValues((prev) => ({ ...prev, title, slug: slugTouched ? prev.slug : slugify(title) }));
@@ -615,23 +703,69 @@ export default function ProductForm({
 
           <Field label="Detailed description — with live preview" className="md:col-span-2">
             <p className="mb-2 text-nano text-slate-500">
-              Paste or type the full product write-up. Start a line with{" "}
-              <code className="rounded bg-mist px-1">##</code> for a section heading,{" "}
-              <code className="rounded bg-mist px-1">-</code> for a bullet point (in bullets,
-              words before a dash or colon turn bold automatically — e.g.{" "}
-              <code className="rounded bg-mist px-1">- Motor: Brushed</code>), or paste an image
-              URL on its own line to show the image. Everything else becomes a paragraph.
+              Paste or type the full write-up, then use the buttons — or the shortcuts: start a
+              line with <code className="rounded bg-mist px-1">##</code> for a heading,{" "}
+              <code className="rounded bg-mist px-1">-</code> for a bullet (in bullets, words
+              before a dash or colon turn bold automatically), wrap words in{" "}
+              <code className="rounded bg-mist px-1">**stars**</code> to bold them anywhere, and
+              start a line with <code className="rounded bg-mist px-1">[center]</code> or{" "}
+              <code className="rounded bg-mist px-1">[right]</code> to align it. Shown to
+              shoppers full-width under the product, in the Detailed Description tab.
             </p>
+
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { icon: Heading2, label: "Heading", onClick: () => toggleRichPrefix("## ") },
+                  { icon: List, label: "Bullet", onClick: () => toggleRichPrefix("- ") },
+                  { icon: Bold, label: "Bold", onClick: wrapRichBold },
+                  { icon: AlignCenter, label: "Center", onClick: () => toggleRichAlign("[center] ") },
+                  { icon: AlignRight, label: "Right", onClick: () => toggleRichAlign("[right] ") },
+                ] as const
+              ).map((tool) => (
+                <button
+                  key={tool.label}
+                  type="button"
+                  onClick={tool.onClick}
+                  className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-nano font-semibold text-slate-600 transition-colors hover:border-gold-400 hover:text-ink"
+                >
+                  <tool.icon size={13} aria-hidden="true" />
+                  {tool.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => richImageInputRef.current?.click()}
+                disabled={richUploading}
+                className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-nano font-semibold text-slate-600 transition-colors hover:border-gold-400 hover:text-ink disabled:opacity-50"
+              >
+                <ImagePlus size={13} aria-hidden="true" />
+                {richUploading ? "Uploading…" : "Insert Image"}
+              </button>
+              <input
+                ref={richImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadRichImage(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
             <div className="grid gap-3 lg:grid-cols-2">
               <Textarea
+                ref={richRef}
                 value={values.richDescription}
                 onChange={(e) => set("richDescription", e.target.value)}
-                rows={16}
+                rows={18}
                 placeholder={
                   "## Overview\nA high-performance 1:10 rock crawler built for hobbyists…\n\n## Key Features\n- Two-Speed Transmission – switch between crawl torque and trail speed\n- Portal Axles – extra ground clearance on rocks\n- LED Lighting – working head and tail lights\n\n## Specifications\n- Scale: 1/10\n- Motor: Brushed\n- Remote Range: 80–100 m"
                 }
               />
-              <div className="max-h-96 overflow-y-auto rounded-lg border border-line bg-white p-4">
+              <div className="max-h-[28rem] overflow-y-auto rounded-lg border border-line bg-white p-4">
                 {values.richDescription.trim() ? (
                   <RichText text={values.richDescription} />
                 ) : (

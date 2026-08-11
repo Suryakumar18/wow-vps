@@ -1,3 +1,4 @@
+import React from "react";
 import { cn } from "@/app/components-home/lib/cn";
 
 /**
@@ -91,9 +92,13 @@ export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLS
   return <select {...props} className={cn(CONTROL, className)} />;
 }
 
-export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export const Textarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function Textarea({ className, ...props }, ref) {
   return (
     <textarea
+      ref={ref}
       {...props}
       className={cn(
         "min-h-[6rem] w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-micro text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-gold-500",
@@ -101,7 +106,7 @@ export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<H
       )}
     />
   );
-}
+});
 
 export function FormError({ children }: { children?: React.ReactNode }) {
   return (

@@ -507,12 +507,6 @@ export default function ProductDetailClient({ product, related }: Props) {
               </div>
             )}
 
-            {/* Long-form write-up (sections, bullets, images) authored in the
-                admin's "Detailed description" editor. */}
-            {product.richDescription?.trim() && (
-              <RichText text={product.richDescription} className="mt-5" />
-            )}
-
             {specs.length > 0 && (
               <div className="mt-5">
                 <h3 className="text-ui font-bold text-ink">Specifications</h3>
@@ -556,6 +550,10 @@ export default function ProductDetailClient({ product, related }: Props) {
             </ul>
           </div>
         </div>
+
+        {/* Full-width tabs below the buy area — the long-form write-up gets
+            the whole screen instead of the narrow info column. */}
+        <DetailTabs product={product} />
 
         {related.length > 0 && (
           <section aria-labelledby="related-heading" className="pt-section">
@@ -624,5 +622,73 @@ export default function ProductDetailClient({ product, related }: Props) {
         )}
       </BottomSheet>
     </>
+  );
+}
+
+/**
+ * Full-width "Detailed Description" / "Reviews" tabs under the buy area —
+ * the long-form write-up authored in the admin's rich editor gets the whole
+ * screen width, the way hobby stores present their spec sheets.
+ */
+function DetailTabs({ product }: { product: CatalogProduct }) {
+  const [tab, setTab] = useState<"description" | "reviews">("description");
+
+  const tabs = [
+    { key: "description" as const, label: "Detailed Description" },
+    {
+      key: "reviews" as const,
+      label: `Reviews${product.numReviews > 0 ? ` (${product.numReviews})` : ""}`,
+    },
+  ];
+
+  return (
+    <section aria-label="Product information" className="mt-10 lg:mt-14">
+      <div role="tablist" className="flex gap-1 border-b border-line">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              "-mb-px rounded-t-lg border px-4 py-2.5 text-micro font-semibold transition-colors md:px-6",
+              tab === t.key
+                ? "border-line border-b-white bg-white text-ink"
+                : "border-transparent text-slate-500 hover:text-ink",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-b-xl border border-t-0 border-line bg-white p-5 md:p-8">
+        {tab === "description" ? (
+          product.richDescription?.trim() ? (
+            <RichText text={product.richDescription} />
+          ) : product.description ? (
+            <p className="text-micro leading-relaxed text-slate-600">{product.description}</p>
+          ) : (
+            <p className="text-micro text-slate-500">
+              A detailed write-up for this product is on its way.
+            </p>
+          )
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <Rating value={product.rating} size={18} />
+            <p className="text-micro font-semibold text-ink">
+              {product.rating.toFixed(1)} out of 5
+              {product.numReviews > 0 &&
+                ` · ${product.numReviews} ${product.numReviews === 1 ? "rating" : "ratings"}`}
+            </p>
+            <p className="max-w-sm text-nano text-slate-500">
+              Written reviews are coming soon. Bought this product? Tell us about it on WhatsApp
+              and we&apos;ll feature your review here.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
