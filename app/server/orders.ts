@@ -194,6 +194,24 @@ export async function createOrderDb(input: {
     include: orderInclude,
   });
 
+  // The order owns these items now — clear the server-side cart so already-
+  // bought products can't resurrect in the next visit's basket. The client
+  // also clears its own state, but that request is fire-and-forget and dies
+  // with the tab; this is the authoritative cleanup. Never fails the order.
+  try {
+    const carts = await prisma.cart.findMany({
+      where: user ? { OR: [{ userId: user.id }, { sessionId }] } : { sessionId },
+      select: { id: true },
+    });
+    if (carts.length > 0) {
+      const cartIds = carts.map((c) => c.id);
+      await prisma.cartItem.deleteMany({ where: { cartId: { in: cartIds } } });
+      await prisma.cart.updateMany({ where: { id: { in: cartIds } }, data: { couponCode: null } });
+    }
+  } catch (err) {
+    console.error("Couldn't clear cart after order:", err);
+  }
+
   // Units, not line items — an order of one product ×2 is two things to pack.
   const units = input.items.reduce((n, item) => n + item.quantity, 0);
 
@@ -208,6 +226,7 @@ export async function createOrderDb(input: {
   // Awaited so serverless doesn't kill them mid-flight, but they never throw —
   // a failed message must not fail an order that's already been paid for.
   await sendOrderPlacedWhatsApp({
+    orderId: row.id,
     orderNumber: row.orderNumber,
     units,
     totalLabel: formatPrice(input.totals.total),

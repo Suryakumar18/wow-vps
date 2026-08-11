@@ -13,13 +13,35 @@ import { deliveryMethods, paymentMethods } from "@/app/components-home/data/home
 import Container from "@/app/components-home/ui/Container";
 import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
+import SelectField from "@/app/components-home/ui/SelectField";
 import Stepper from "@/app/components-home/ui/Stepper";
 import Icon, { type IconName } from "@/app/components-home/ui/Icon";
 import { formatPrice } from "@/app/components-home/lib/format";
 import { cn } from "@/app/components-home/lib/cn";
+import { useCurrentUser } from "@/app/components-home/lib/useCurrentUser";
+import { INDIAN_STATES, OTHER_CITY } from "@/app/components-home/data/india";
 
 const PHONE = /^[0-9+\-\s()]{8,}$/;
 const PINCODE = /^\d{6}$/;
+
+/** Indian mobile: 10 digits starting 6–9, with or without +91/91/0 prefix. */
+function validMobile(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "");
+  if (digits.length === 10) return /^[6-9]/.test(digits);
+  if (digits.length === 12 && digits.startsWith("91")) return /^[6-9]/.test(digits.slice(2));
+  return false;
+}
+
+interface AddressSuggestion {
+  label: string;
+  name: string;
+  phone: string;
+  line1: string;
+  city: string;
+  state: string;
+  pincode: string;
+  line: string;
+}
 
 const STEPS = [
   { key: "address", label: "Address" },
@@ -27,7 +49,9 @@ const STEPS = [
   { key: "payment", label: "Payment" },
 ];
 
-type NewAddressErrors = Partial<Record<"label" | "fullName" | "phone" | "line1" | "city" | "state" | "pincode", string>>;
+type NewAddressErrors = Partial<
+  Record<"label" | "fullName" | "phone" | "line1" | "state" | "city" | "otherCity" | "pincode", string>
+>;
 
 /**
  * Checkout — a single page carrying three steps (Address → Delivery →
@@ -58,10 +82,23 @@ export default function CheckoutPage() {
   // this session loads from the server a moment later.
   const [addresses, setAddresses] = useState(() => getAddresses());
   useEffect(() => {
-    const onChange = () => setAddresses(getAddresses());
+    const onChange = () => {
+      const next = getAddresses();
+      setAddresses(next);
+      // A just-saved address is selected under its optimistic id; the server
+      // refresh replaces that id with the real row's. Re-point the selection
+      // at the newest address so the tick doesn't silently vanish.
+      if (
+        selectedAddressId &&
+        next.length > 0 &&
+        !next.some((a) => a.id === selectedAddressId)
+      ) {
+        setSelectedAddressId(next[next.length - 1].id);
+      }
+    };
     window.addEventListener("addressesChange", onChange);
     return () => window.removeEventListener("addressesChange", onChange);
-  }, []);
+  }, [selectedAddressId, setSelectedAddressId]);
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodId>("standard");
   const [paymentMethodId, setPaymentMethodId] = useState<string>(paymentMethods[0]?.id ?? "upi");
@@ -308,23 +345,157 @@ function AddressStep({
   onContinue: () => void;
 }) {
   const headingId = "checkout-step-address";
+  const user = useCurrentUser();
   const hasAddresses = addresses.length > 0;
   // The form renders inline (not in a drawer, which is mobile-only chrome):
   // always when there's nothing saved yet, on demand otherwise.
   const [formOpen, setFormOpen] = useState(false);
-  const showForm = !hasAddresses || formOpen;
+
+  // Guest flow: the mobile number comes first, always. If it has ordered
+  // before, the previous shipping address comes back as a one-tap suggestion.
+  const [guestPhone, setGuestPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+
+  const showPhoneGate = user === null && !hasAddresses && !phoneChecked;
+  const authLoading = user === undefined && !hasAddresses;
+  const showForm = hasAddresses ? formOpen : suggestions.length === 0 || formOpen;
+
+  const checkPhone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validMobile(guestPhone)) {
+      setPhoneError("Enter a valid mobile number.");
+      return;
+    }
+    setPhoneError(null);
+    setChecking(true);
+    try {
+      const res = await fetch("/api/addresses/from-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: guestPhone }),
+      });
+      const body = await res.json().catch(() => null);
+      setSuggestions(res.ok && Array.isArray(body?.suggestions) ? body.suggestions : []);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setChecking(false);
+      setPhoneChecked(true);
+    }
+  };
+
+  const applySuggestion = (s: AddressSuggestion) => {
+    const next = addAddress({
+      label: s.label,
+      fullName: s.name || s.label,
+      phone: s.phone,
+      line1: s.line1,
+      city: s.city,
+      state: s.state,
+      pincode: s.pincode,
+    });
+    onSaved(next, next[next.length - 1].id);
+  };
+
+  if (showPhoneGate) {
+    return (
+      <div>
+        <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-ui font-bold text-ink outline-none">
+          Shipping Address
+        </h2>
+        <p className="mt-1 text-micro text-slate-500">
+          Enter your mobile number to continue — if you&apos;ve ordered with us before, we&apos;ll
+          fetch your saved delivery address.
+        </p>
+        <form onSubmit={checkPhone} noValidate className="mt-4 flex flex-col gap-3">
+          <TextField
+            label="Mobile number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="Mobile Number"
+            value={guestPhone}
+            onChange={(e) => {
+              setGuestPhone(e.target.value);
+              if (phoneError) setPhoneError(null);
+            }}
+            error={phoneError ?? undefined}
+          />
+          <Button type="submit" size="md" disabled={checking} className="w-full">
+            {checking ? "Checking…" : "Continue"}
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div>
+        <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-ui font-bold text-ink outline-none">
+          Shipping Address
+        </h2>
+        <div className="mt-3 h-24 animate-pulse rounded-xl border border-line bg-mist" />
+      </div>
+    );
+  }
 
   return (
     <div>
       <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-ui font-bold text-ink outline-none">
         Shipping Address
       </h2>
-      {!hasAddresses && (
+      {!hasAddresses && suggestions.length === 0 && (
         <p className="mt-1 text-micro text-slate-500">
           Enter your delivery details — the mobile number and pincode are used for delivery updates.
         </p>
       )}
 
+      {!hasAddresses && suggestions.length > 0 && !formOpen && (
+        <>
+          <p className="mt-1 text-micro text-slate-500">
+            Welcome back! We found your previous delivery{" "}
+            {suggestions.length === 1 ? "address" : "addresses"} — tap to use{" "}
+            {suggestions.length === 1 ? "it" : "one"}.
+          </p>
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {suggestions.map((s) => (
+              <li key={s.line}>
+                <button
+                  type="button"
+                  onClick={() => applySuggestion(s)}
+                  className="flex w-full items-start gap-3 rounded-lg border border-line p-3.5 text-left transition-colors hover:border-gold-400 hover:bg-gold-50"
+                >
+                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mist text-gold-600">
+                    <MapPin size={16} aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-micro font-semibold text-ink">
+                      {s.label}
+                      {s.name && <span className="font-normal text-slate-500"> — {s.name}</span>}
+                    </span>
+                    <span className="mt-0.5 block text-micro text-slate-600">{s.line}</span>
+                    <span className="mt-0.5 block text-nano text-slate-500">{s.phone}</span>
+                  </span>
+                  <span className="mt-0.5 shrink-0 text-nano font-semibold text-gold-600">Use this</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line py-3 text-micro font-semibold text-gold-600 transition-colors hover:border-gold-400 hover:bg-gold-50"
+          >
+            <Plus size={14} aria-hidden="true" />
+            Deliver to a different address
+          </button>
+        </>
+      )}
+
+      {hasAddresses && (
       <ul role="radiogroup" aria-labelledby={headingId} className="mt-3 flex flex-col gap-2.5">
         {addresses.map((a) => (
           <li key={a.id}>
@@ -364,14 +535,20 @@ function AddressStep({
           </li>
         ))}
       </ul>
+      )}
 
       {showForm ? (
-        <div className={cn("rounded-xl border border-line p-4", hasAddresses && "mt-3")}>
+        <div
+          className={cn(
+            "rounded-xl border border-line p-4",
+            (hasAddresses || suggestions.length > 0) && "mt-3",
+          )}
+        >
           <div className="flex items-center justify-between">
             <p className="text-micro font-bold text-ink">
               {hasAddresses ? "New address" : "Delivery address"}
             </p>
-            {hasAddresses && (
+            {(hasAddresses || suggestions.length > 0) && (
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
@@ -383,6 +560,7 @@ function AddressStep({
           </div>
           <div className="mt-3">
             <NewAddressForm
+              initialPhone={guestPhone}
               onSaved={(nextAddresses, newId) => {
                 onSaved(nextAddresses, newId);
                 setFormOpen(false);
@@ -390,7 +568,7 @@ function AddressStep({
             />
           </div>
         </div>
-      ) : (
+      ) : hasAddresses ? (
         <button
           type="button"
           onClick={() => setFormOpen(true)}
@@ -399,7 +577,7 @@ function AddressStep({
           <Plus size={14} aria-hidden="true" />
           Add New Address
         </button>
-      )}
+      ) : null}
 
       <Button
         onClick={onContinue}
@@ -415,33 +593,46 @@ function AddressStep({
 
 function NewAddressForm({
   onSaved,
+  initialPhone = "",
 }: {
   onSaved: (addresses: Address[], newId: string) => void;
+  /** Prefilled from the guest phone gate so the number isn't typed twice. */
+  initialPhone?: string;
 }) {
   const [form, setForm] = useState({
     label: "",
     fullName: "",
-    phone: "",
+    phone: initialPhone,
     line1: "",
-    city: "",
     state: "",
+    city: "",
+    otherCity: "",
     pincode: "",
   });
   const [errors, setErrors] = useState<NewAddressErrors>({});
-  const fieldRefs = useRef<Partial<Record<keyof NewAddressErrors, HTMLInputElement | null>>>({});
+  const fieldRefs = useRef<
+    Partial<Record<keyof NewAddressErrors, HTMLInputElement | HTMLSelectElement | null>>
+  >({});
   const errorSummaryRef = useRef<HTMLParagraphElement>(null);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const cities = INDIAN_STATES.find((s) => s.name === form.state)?.cities ?? [];
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const next: NewAddressErrors = {};
     if (form.fullName.trim().length < 2) next.fullName = "Enter the recipient's name.";
-    if (!PHONE.test(form.phone)) next.phone = "Enter a valid phone number.";
+    if (!PHONE.test(form.phone) || !validMobile(form.phone)) {
+      next.phone = "Enter a valid mobile number.";
+    }
     if (form.line1.trim().length < 4) next.line1 = "Enter the street address.";
-    if (form.city.trim().length < 2) next.city = "Enter a city.";
-    if (form.state.trim().length < 2) next.state = "Enter a state.";
+    if (!form.state) next.state = "Select your state.";
+    if (!form.city) next.city = "Select your city.";
+    if (form.city === OTHER_CITY && form.otherCity.trim().length < 2) {
+      next.otherCity = "Enter your city name.";
+    }
     if (!PINCODE.test(form.pincode)) next.pincode = "Enter a 6-digit pincode.";
     setErrors(next);
 
@@ -455,7 +646,15 @@ function NewAddressForm({
       return;
     }
 
-    const nextAddresses = addAddress({ ...form, label: form.label || "Address" });
+    const nextAddresses = addAddress({
+      label: form.label || "Address",
+      fullName: form.fullName,
+      phone: form.phone,
+      line1: form.line1,
+      city: form.city === OTHER_CITY ? form.otherCity.trim() : form.city,
+      state: form.state,
+      pincode: form.pincode,
+    });
     onSaved(nextAddresses, nextAddresses[nextAddresses.length - 1].id);
   };
 
@@ -504,28 +703,46 @@ function NewAddressForm({
         onChange={set("line1")}
         error={errors.line1}
       />
+      {/* State first — the city list depends on it. */}
       <div className="grid grid-cols-2 gap-3">
-        <TextField
-          ref={(el) => {
-            fieldRefs.current.city = el;
-          }}
-          label="City"
-          placeholder="City"
-          value={form.city}
-          onChange={set("city")}
-          error={errors.city}
-        />
-        <TextField
+        <SelectField
           ref={(el) => {
             fieldRefs.current.state = el;
           }}
           label="State"
-          placeholder="State"
+          placeholder="Select State"
+          options={INDIAN_STATES.map((s) => s.name)}
           value={form.state}
-          onChange={set("state")}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, state: e.target.value, city: "", otherCity: "" }))
+          }
           error={errors.state}
         />
+        <SelectField
+          ref={(el) => {
+            fieldRefs.current.city = el;
+          }}
+          label="City"
+          placeholder={form.state ? "Select City" : "Select state first"}
+          options={[...cities, OTHER_CITY]}
+          value={form.city}
+          disabled={!form.state}
+          onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+          error={errors.city}
+        />
       </div>
+      {form.city === OTHER_CITY && (
+        <TextField
+          ref={(el) => {
+            fieldRefs.current.otherCity = el;
+          }}
+          label="City name"
+          placeholder="Enter your city name"
+          value={form.otherCity}
+          onChange={set("otherCity")}
+          error={errors.otherCity}
+        />
+      )}
       <TextField
         ref={(el) => {
           fieldRefs.current.pincode = el;

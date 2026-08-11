@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export interface CartItem {
   id: string;
@@ -80,6 +80,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
+  // Set the moment any mutation fires. The initial GET below checks it before
+  // applying its (possibly pre-mutation) snapshot — without this, "Buy Now"
+  // clicked before the first load resolves lets the stale GET response land
+  // last and wipe the just-added product from view.
+  const mutatedRef = useRef(false);
+
   const applyServerCart = useCallback((server: ServerCart) => {
     setCart(server.items);
     setSubtotal(server.subtotal);
@@ -94,7 +100,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/cart");
         if (cancelled) return;
-        if (res.ok) applyServerCart(await res.json());
+        if (res.ok && !mutatedRef.current) applyServerCart(await res.json());
       } finally {
         if (!cancelled) setHydrated(true);
       }
@@ -116,6 +122,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addToCart = useCallback(
     (item: CartItem) => {
       if (item.totalStock <= 0) return;
+      mutatedRef.current = true;
 
       setCart((prev) => {
         const existing = prev.find((i) => i.id === item.id);
@@ -140,6 +147,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeFromCart = useCallback(
     (id: string) => {
+      mutatedRef.current = true;
       setCart((prev) => prev.filter((i) => i.id !== id));
       (async () => {
         const res = await fetch(`/api/cart/items/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -151,6 +159,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const setQuantity = useCallback(
     (id: string, quantity: number) => {
+      mutatedRef.current = true;
       setCart((prev) =>
         prev.map((item) =>
           item.id === id
@@ -171,9 +180,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearCart = useCallback(() => {
+    mutatedRef.current = true;
     setCart([]);
     setCouponCode(null);
     setDiscountPercent(0);
+    // Belt and braces: the server also clears the cart when an order is
+    // written (createOrderDb), so a dropped request here can't resurrect
+    // already-bought items on the next visit.
     fetch("/api/cart", { method: "DELETE" }).catch(() => {});
   }, []);
 

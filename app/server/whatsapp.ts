@@ -1,5 +1,6 @@
 import "server-only";
 import { canonicalPhone } from "./phone";
+import { siteUrl } from "./env";
 
 /**
  * Meta WhatsApp Cloud API.
@@ -83,14 +84,15 @@ export async function sendWhatsAppText(to: string, body: string): Promise<void> 
 
 /**
  * Approved-template send. `bodyParams` fill {{1}}, {{2}}… in order.
- * `copyCodeButton` is for AUTHENTICATION templates, whose copy-code button
- * takes the OTP as a URL-button parameter at position 0.
+ * `buttonParam` fills the first button's variable — the OTP for an
+ * AUTHENTICATION template's copy-code button, or the dynamic path segment of
+ * a UTILITY template's URL button. Same payload shape either way.
  */
 export async function sendWhatsAppTemplate(
   to: string,
   name: string,
   bodyParams: string[],
-  opts?: { copyCodeButton?: string },
+  opts?: { buttonParam?: string },
 ): Promise<void> {
   const components: Record<string, unknown>[] = [];
   if (bodyParams.length > 0) {
@@ -99,12 +101,12 @@ export async function sendWhatsAppTemplate(
       parameters: bodyParams.map((text) => ({ type: "text", text })),
     });
   }
-  if (opts?.copyCodeButton) {
+  if (opts?.buttonParam) {
     components.push({
       type: "button",
       sub_type: "url",
       index: "0",
-      parameters: [{ type: "text", text: opts.copyCodeButton }],
+      parameters: [{ type: "text", text: opts.buttonParam }],
     });
   }
 
@@ -126,7 +128,7 @@ export async function sendWhatsAppTemplate(
 export async function sendOtpWhatsApp(to: string, code: string): Promise<void> {
   const template = process.env.WHATSAPP_OTP_TEMPLATE;
   if (template) {
-    await sendWhatsAppTemplate(to, template, [code], { copyCodeButton: code });
+    await sendWhatsAppTemplate(to, template, [code], { buttonParam: code });
     return;
   }
   await sendWhatsAppText(
@@ -136,6 +138,8 @@ export async function sendOtpWhatsApp(to: string, code: string): Promise<void> {
 }
 
 export interface OrderNotificationInput {
+  /** Database id — the /admin/orders/[id] path segment for the alert button. */
+  orderId: string;
   orderNumber: string;
   units: number;
   totalLabel: string;
@@ -190,19 +194,20 @@ async function sendCustomerOrderPing(to: string, i: OrderNotificationInput): Pro
 
 /**
  * Template params: {{1}} order number, {{2}} units, {{3}} total,
- * {{4}} customer name, {{5}} customer phone.
+ * {{4}} customer name, {{5}} customer phone; the template's "View Order"
+ * URL button gets the order's database id as its dynamic path segment.
  */
 async function sendAdminOrderPing(to: string, i: OrderNotificationInput): Promise<void> {
+  const orderUrl = `${siteUrl()}/admin/orders/${i.orderId}`;
   const template = process.env.WHATSAPP_ORDER_ADMIN_TEMPLATE;
   if (template) {
     try {
-      await sendWhatsAppTemplate(to, template, [
-        i.orderNumber,
-        String(i.units),
-        i.totalLabel,
-        i.customerName,
-        i.customerPhone,
-      ]);
+      await sendWhatsAppTemplate(
+        to,
+        template,
+        [i.orderNumber, String(i.units), i.totalLabel, i.customerName, i.customerPhone],
+        { buttonParam: i.orderId },
+      );
       return;
     } catch (err) {
       console.error("Admin order template failed, trying free-form text:", err);
@@ -212,6 +217,7 @@ async function sendAdminOrderPing(to: string, i: OrderNotificationInput): Promis
     to,
     `🛒 New order ${i.orderNumber}\n` +
       `${i.units} ${i.units === 1 ? "unit" : "units"} · ${i.totalLabel}\n` +
-      `Customer: ${i.customerName} (${i.customerPhone})`,
+      `Customer: ${i.customerName} (${i.customerPhone})\n` +
+      `View order: ${orderUrl}`,
   );
 }
