@@ -190,10 +190,24 @@ export default function RichText({ text, className }: { text: string; className?
               </ul>
             );
           case "image": {
-            const alignClass = cn(
-              block.align === "center" && "mx-auto",
-              block.align === "right" && "ml-auto",
-            );
+            // `self-*`, not `mx-auto`: this is a column flex container, so a
+            // child with no align-self is *stretched* to the full width. On an
+            // <img> that sets an explicit width, and the old `max-h-[32rem]`
+            // then clamped the height — which squashed a tall manufacturer
+            // panel (1000×1869) into 1032×512 instead of scaling it. Opting
+            // out of the stretch and letting the height follow keeps every
+            // image at its true proportions.
+            const alignClass =
+              block.align === "center"
+                ? "self-center"
+                : block.align === "right"
+                  ? "self-end"
+                  : "self-start";
+            // No height cap: long feature panels are meant to be read at full
+            // width, and capping their height would shrink a portrait strip to
+            // a sliver. `max-w-full` still keeps any image inside the column.
+            const imageClass = cn("h-auto max-w-full rounded-lg border border-line", alignClass);
+
             // The uploads box serves plain http, which an https storefront
             // blocks as mixed content — next/image proxies those through the
             // optimizer (its host is whitelisted in next.config). Arbitrary
@@ -206,19 +220,10 @@ export default function RichText({ text, className }: { text: string; className?
                 width={1200}
                 height={800}
                 sizes="(min-width: 1024px) 60rem, 100vw"
-                className={cn(
-                  "h-auto w-auto max-h-[32rem] max-w-full rounded-lg border border-line",
-                  alignClass,
-                )}
+                className={imageClass}
               />
             ) : (
-              <img
-                key={i}
-                src={block.url}
-                alt=""
-                loading="lazy"
-                className={cn("max-h-[32rem] max-w-full rounded-lg border border-line", alignClass)}
-              />
+              <img key={i} src={block.url} alt="" loading="lazy" className={imageClass} />
             );
           }
           default:
