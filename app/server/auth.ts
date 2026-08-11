@@ -65,6 +65,7 @@ export interface SessionUser {
   email: string;
   name: string;
   isAdmin: boolean;
+  phone: string | null;
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -78,7 +79,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
 
-  return { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    isAdmin: user.isAdmin,
+    phone: user.phone,
+  };
 }
 
 /** The signed-in user, but only when they're an admin. */

@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
     isAdmin: user.isAdmin,
     // Where the client should go next — admins land in the panel.
     redirectTo: user.isAdmin ? "/admin" : "/",

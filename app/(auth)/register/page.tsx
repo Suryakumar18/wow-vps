@@ -9,6 +9,7 @@ import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
 import Checkbox from "@/app/components-home/ui/Checkbox";
 import OtpInput from "@/app/components-home/auth/OtpInput";
+import { setCurrentUser } from "@/app/components-home/lib/useCurrentUser";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -167,6 +168,14 @@ export default function RegisterPage() {
         setNotice(body?.error ?? "Registration failed.");
         return;
       }
+      // The header greets the new customer by name straight away.
+      setCurrentUser({
+        id: body.id,
+        name: body.name,
+        email: body.email,
+        phone: body.phone ?? null,
+        isAdmin: body.isAdmin,
+      });
       router.push(body.redirectTo ?? "/");
       router.refresh();
     } catch {

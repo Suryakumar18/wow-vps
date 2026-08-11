@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronDown, Crown, Package, PhoneCall, User, X } from "lucide-react";
+import { ChevronDown, Crown, LogOut, Package, Pencil, PhoneCall, User, X } from "lucide-react";
 import { BrandMark } from "./ui/BrandLogo";
 import { announcement, brand, navItems as defaultNavItems, type NavItem } from "./data/home-content";
 import { cn } from "./lib/cn";
-import { useCurrentUser } from "./lib/useCurrentUser";
+import { setCurrentUser, useCurrentUser } from "./lib/useCurrentUser";
 
 /**
  * Off-canvas navigation for tablet and phone. Mirrors the desktop department
@@ -24,6 +25,15 @@ export default function MobileMenu({
   const navItems = items;
   const [expanded, setExpanded] = useState<string | null>(null);
   const user = useCurrentUser();
+  const router = useRouter();
+
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setCurrentUser(null);
+    onClose();
+    router.push("/");
+    router.refresh();
+  };
 
   // Lock body scroll and wire Escape while the drawer is open.
   useEffect(() => {
@@ -150,14 +160,35 @@ export default function MobileMenu({
             <Package size={14} aria-hidden="true" />
             My Orders
           </Link>
-          <Link
-            href={user ? "/orders" : "/login"}
-            onClick={onClose}
-            className="flex h-nav-control-md items-center justify-center gap-u-2 rounded-md border border-line text-nav-ui font-semibold text-ink transition-colors hover:bg-mist"
-          >
-            <User size={14} aria-hidden="true" />
-            <span className="max-w-[12rem] truncate">{user ? user.name : "Sign In / Register"}</span>
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/account"
+                onClick={onClose}
+                className="flex h-nav-control-md items-center justify-center gap-u-2 rounded-md border border-line text-nav-ui font-semibold text-ink transition-colors hover:bg-mist"
+              >
+                <Pencil size={14} aria-hidden="true" />
+                <span className="max-w-[12rem] truncate">Edit Profile — {user.name}</span>
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="flex h-nav-control-md w-full items-center justify-center gap-u-2 rounded-md border border-[#FECACA] text-nav-ui font-semibold text-[#B91C1C] transition-colors hover:bg-[#FEF2F2]"
+              >
+                <LogOut size={14} aria-hidden="true" />
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              onClick={onClose}
+              className="flex h-nav-control-md items-center justify-center gap-u-2 rounded-md border border-line text-nav-ui font-semibold text-ink transition-colors hover:bg-mist"
+            >
+              <User size={14} aria-hidden="true" />
+              Sign In / Register
+            </Link>
+          )}
           <Link
             href="/"
             onClick={onClose}

@@ -7,6 +7,7 @@ import { BrandMark } from "@/app/components-home/ui/BrandLogo";
 import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
 import Checkbox from "@/app/components-home/ui/Checkbox";
+import { setCurrentUser } from "@/app/components-home/lib/useCurrentUser";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -47,6 +48,14 @@ export default function LoginPage() {
         setNotice(body?.error ?? "Sign in failed.");
         return;
       }
+      // The header's account menu flips to the customer's name immediately.
+      setCurrentUser({
+        id: body.id,
+        name: body.name,
+        email: body.email,
+        phone: body.phone ?? null,
+        isAdmin: body.isAdmin,
+      });
       router.push(body.redirectTo ?? "/");
       router.refresh();
     } catch {

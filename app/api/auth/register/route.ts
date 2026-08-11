@@ -68,7 +68,14 @@ export async function POST(request: NextRequest) {
 
   await setSessionCookie(user.id);
   return NextResponse.json(
-    { id: user.id, name: user.name, email: user.email, isAdmin: false, redirectTo: "/" },
+    {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isAdmin: false,
+      redirectTo: "/",
+    },
     { status: 201 },
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Crown, Menu, Package, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Crown, LogOut, Menu, Package, Pencil, User } from "lucide-react";
 import Container from "./ui/Container";
 import BrandLogo from "./ui/BrandLogo";
 import SearchBar from "./SearchBar";
@@ -12,7 +13,7 @@ import MobileMenu from "./MobileMenu";
 import { WishlistLink } from "./WishlistButton";
 import AnnouncementBar from "./AnnouncementBar";
 import { cn } from "./lib/cn";
-import { useCurrentUser } from "./lib/useCurrentUser";
+import { setCurrentUser, useCurrentUser } from "./lib/useCurrentUser";
 
 /**
  * Site chrome: announcement bar, utility header and primary nav.
@@ -108,7 +109,7 @@ export default function SiteHeader({
                 <span className="hidden text-nav-ui font-medium xl:inline">My Orders</span>
               </Link>
 
-              <AccountLink />
+              <AccountMenu />
 
               <Link
                 href="/"
@@ -135,23 +136,104 @@ export default function SiteHeader({
 }
 
 /**
- * "Sign In / Register" for guests; the customer's first name once signed in,
- * linking to their orders. Auth state comes from the shared client-side
- * cache (`useCurrentUser`), so the prerendered pages this header sits on
- * stay static — no cookies are read during server render.
+ * "Sign In / Register" for guests; the customer's name with a dropdown
+ * (My Orders / Edit Profile / Logout) once signed in. Auth state comes from
+ * the shared client-side cache (`useCurrentUser`), so the prerendered pages
+ * this header sits on stay static — no cookies are read during server
+ * render.
  */
-function AccountLink() {
+function AccountMenu() {
   const user = useCurrentUser();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setCurrentUser(null);
+    setOpen(false);
+    router.push("/");
+    router.refresh();
+  };
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="hidden min-h-11 min-w-11 items-center justify-center gap-u-2 text-ink transition-colors hover:text-gold-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-600 sm:flex xl:min-w-0"
+      >
+        <User size={18} strokeWidth={1.75} aria-hidden="true" />
+        <span className="hidden max-w-[9rem] truncate text-nav-ui font-medium xl:inline">
+          Sign In / Register
+        </span>
+      </Link>
+    );
+  }
+
+  const menuItem =
+    "flex w-full items-center gap-2.5 px-4 py-2.5 text-nav-ui font-medium text-ink transition-colors hover:bg-mist";
 
   return (
-    <Link
-      href={user ? "/orders" : "/login"}
-      className="hidden min-h-11 min-w-11 items-center justify-center gap-u-2 text-ink transition-colors hover:text-gold-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-600 sm:flex xl:min-w-0"
-    >
-      <User size={18} strokeWidth={1.75} aria-hidden="true" />
-      <span className="hidden max-w-[9rem] truncate text-nav-ui font-medium xl:inline">
-        {user ? user.name.split(" ")[0] : "Sign In / Register"}
-      </span>
-    </Link>
+    <div ref={menuRef} className="relative hidden sm:block">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex min-h-11 min-w-11 items-center justify-center gap-u-2 text-ink transition-colors hover:text-gold-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-600 xl:min-w-0"
+      >
+        <User size={18} strokeWidth={1.75} aria-hidden="true" />
+        <span className="hidden max-w-[9rem] truncate text-nav-ui font-medium xl:inline">
+          {user.name.split(" ")[0]}
+        </span>
+        <ChevronDown
+          size={13}
+          aria-hidden="true"
+          className={cn("hidden transition-transform xl:block", open && "rotate-180")}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-[0_16px_40px_-16px_rgba(16,33,53,0.35)]"
+        >
+          <p className="border-b border-line px-4 py-2.5 text-nav-nano text-slate-500">
+            Signed in as <span className="font-semibold text-ink">{user.name}</span>
+          </p>
+          <Link href="/orders" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
+            <Package size={15} aria-hidden="true" className="text-slate-400" />
+            My Orders
+          </Link>
+          <Link href="/account" role="menuitem" onClick={() => setOpen(false)} className={menuItem}>
+            <Pencil size={15} aria-hidden="true" className="text-slate-400" />
+            Edit Profile
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={logout}
+            className={cn(menuItem, "border-t border-line text-[#B91C1C] hover:bg-[#FEF2F2]")}
+          >
+            <LogOut size={15} aria-hidden="true" />
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
