@@ -2,7 +2,13 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
-import { getActiveOffer, offerPrice, offerOriginalPrice, type ActiveOffer } from "./offer";
+import {
+  getActiveOffer,
+  offerFor,
+  offerPrice,
+  offerOriginalPrice,
+  type ActiveOffer,
+} from "./offer";
 import {
   EMPTY_FACETS,
   IN_STOCK,
@@ -38,6 +44,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 
 /** Everything a grid tile paints, and nothing else. */
 const cardSelect = {
+  id: true,
   slug: true,
   title: true,
   price: true,
@@ -61,8 +68,8 @@ const toCard = (p: CardRow, offer: ActiveOffer | null = null): CatalogCard => ({
   brand: p.brand.name,
   categoryId: p.category.slug,
   subcategoryId: p.subcategory?.slug,
-  price: offerPrice(p.price, offer),
-  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offer),
+  price: offerPrice(p.price, offerFor(p.id, offer)),
+  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offerFor(p.id, offer)),
   totalStock: p.totalStock,
   rating: p.rating,
   numReviews: p.numReviews,
@@ -88,8 +95,8 @@ const toProduct = (p: DetailRow, offer: ActiveOffer | null = null): CatalogProdu
   brand: p.brand.name,
   categoryId: p.category.slug,
   subcategoryId: p.subcategory?.slug,
-  price: offerPrice(p.price, offer),
-  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offer),
+  price: offerPrice(p.price, offerFor(p.id, offer)),
+  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offerFor(p.id, offer)),
   totalStock: p.totalStock,
   rating: p.rating,
   numReviews: p.numReviews,

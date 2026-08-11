@@ -551,17 +551,22 @@ model Coupon {
   @@map("coupons")
 }
 
-/// A sitewide sale ("Aadi Offer — 18%"). While one is active, every price
-/// the storefront serves (cards, detail pages, cart, checkout totals and
-/// therefore order snapshots) is cut by `percent`. At most one is active at
-/// a time — activating one deactivates the rest. `couponCode` optionally
-/// surfaces an extra claimable coupon in the storefront's offer popup.
+/// A sale ("Aadi Offer — 18%"). While one is active, the prices the
+/// storefront serves (cards, detail pages, cart, checkout totals and
+/// therefore order snapshots) are cut by `percent` — for every product when
+/// `productIds` is empty, or only for the products listed in it. At most
+/// one offer is active at a time — activating one deactivates the rest.
+/// `couponCode` optionally surfaces an extra claimable coupon in the
+/// storefront's offer popup; `imageUrl` is the banner shown in the popup
+/// and sent as the image of the WhatsApp broadcast.
 model Offer {
   id         String   @id @default(cuid())
   title      String
   percent    Int
   isActive   Boolean  @default(false)
   couponCode String?
+  imageUrl   String?
+  productIds String[] @default([])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

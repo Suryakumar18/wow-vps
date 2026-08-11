@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
-import { getActiveOffer, offerPrice, offerOriginalPrice } from "./offer";
+import { getActiveOffer, offerFor, offerPrice, offerOriginalPrice } from "./offer";
 import {
   heroSlides as staticHeroSlides,
   promoBanners as staticPromoBanners,
@@ -132,12 +132,13 @@ async function readDealProducts(limit: number): Promise<Product[]> {
 
   const offer = await getActiveOffer();
   return rows
-    .filter((r) => r.originalPrice > r.price || offer !== null)
+    .filter((r) => r.originalPrice > r.price || offerFor(r.id, offer) !== null)
     .sort((a, b) => b.originalPrice - b.price - (a.originalPrice - a.price))
     .slice(0, limit)
     .map((row) => {
-      const price = offerPrice(row.price, offer);
-      const mrp = offerOriginalPrice(row.price, row.originalPrice, offer);
+      const applied = offerFor(row.id, offer);
+      const price = offerPrice(row.price, applied);
+      const mrp = offerOriginalPrice(row.price, row.originalPrice, applied);
       return {
         id: row.slug,
         title: row.title,
@@ -171,8 +172,9 @@ async function readFeaturedProducts(limit: number): Promise<Product[]> {
 
   const offer = await getActiveOffer();
   return rows.map((row) => {
-    const price = offerPrice(row.price, offer);
-    const mrp = offerOriginalPrice(row.price, row.originalPrice, offer);
+    const applied = offerFor(row.id, offer);
+    const price = offerPrice(row.price, applied);
+    const mrp = offerOriginalPrice(row.price, row.originalPrice, applied);
     return {
       id: row.slug,
       title: row.title,

@@ -15,6 +15,9 @@ export interface ActiveOffer {
   title: string;
   percent: number;
   couponCode: string | null;
+  imageUrl: string | null;
+  /** Product cuids the offer covers; empty = the whole store. */
+  productIds: string[];
 }
 
 export async function getActiveOffer(): Promise<ActiveOffer | null> {
@@ -23,7 +26,25 @@ export async function getActiveOffer(): Promise<ActiveOffer | null> {
     orderBy: { updatedAt: "desc" },
   });
   if (!offer) return null;
-  return { id: offer.id, title: offer.title, percent: offer.percent, couponCode: offer.couponCode };
+  return {
+    id: offer.id,
+    title: offer.title,
+    percent: offer.percent,
+    couponCode: offer.couponCode,
+    imageUrl: offer.imageUrl,
+    productIds: offer.productIds,
+  };
+}
+
+/**
+ * The offer as it applies to ONE product: the offer itself when it's
+ * sitewide or lists this product, `null` otherwise. Serializers call this
+ * per row so a scoped sale discounts exactly the chosen products.
+ */
+export function offerFor(productId: string, offer: ActiveOffer | null): ActiveOffer | null {
+  if (!offer) return null;
+  if (offer.productIds.length === 0) return offer;
+  return offer.productIds.includes(productId) ? offer : null;
 }
 
 /** Sale price under an offer — whole rupees, never below ₹1. */

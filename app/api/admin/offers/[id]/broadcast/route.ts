@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/server/prisma";
 import { requireAdmin } from "@/app/server/adminGuard";
 import { canonicalPhone } from "@/app/server/phone";
-import { sendWhatsAppText, whatsappConfigured } from "@/app/server/whatsapp";
+import { sendWhatsAppImage, sendWhatsAppText, whatsappConfigured } from "@/app/server/whatsapp";
 import { siteUrl } from "@/app/server/env";
 
 /**
@@ -47,19 +47,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "WhatsApp isn't configured." }, { status: 503 });
   }
 
+  const scopeLine =
+    offer.productIds.length > 0 ? "on selected products" : "on everything";
   const message =
-    `🎉 ${offer.title} — ${offer.percent}% OFF on everything at WOW Lifestyle!` +
+    `🎉 ${offer.title} — ${offer.percent}% OFF ${scopeLine} at WOW Lifestyle!` +
     (offer.couponCode ? `\nUse coupon ${offer.couponCode} at checkout for extra savings.` : "") +
     `\nShop now: ${siteUrl()}`;
+
+  // With a banner attached the blast goes out as an image message, the text
+  // riding along as its caption; otherwise plain text.
+  const deliver = (to: string) =>
+    offer.imageUrl
+      ? sendWhatsAppImage(to, offer.imageUrl, message)
+      : sendWhatsAppText(to, message);
 
   let sent = 0;
   let failed = 0;
   const numbers = [...audience];
   // Small parallel batches — enough throughput without hammering the API.
   for (let i = 0; i < numbers.length; i += 5) {
-    const results = await Promise.allSettled(
-      numbers.slice(i, i + 5).map((to) => sendWhatsAppText(to, message)),
-    );
+    const results = await Promise.allSettled(numbers.slice(i, i + 5).map(deliver));
     for (const result of results) {
       if (result.status === "fulfilled") sent += 1;
       else failed += 1;

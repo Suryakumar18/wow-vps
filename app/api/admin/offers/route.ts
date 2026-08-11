@@ -20,6 +20,12 @@ export async function POST(request: NextRequest) {
     typeof body?.couponCode === "string" && body.couponCode.trim()
       ? body.couponCode.trim().toUpperCase()
       : null;
+  const imageUrl =
+    typeof body?.imageUrl === "string" && body.imageUrl.trim() ? body.imageUrl.trim() : null;
+  // Product cuids the offer covers; empty means the whole store.
+  const productIds = Array.isArray(body?.productIds)
+    ? body.productIds.filter((id: unknown): id is string => typeof id === "string").slice(0, 500)
+    : [];
 
   if (title.length < 3) {
     return NextResponse.json({ error: "Give the offer a name (e.g. Aadi Offer)." }, { status: 400 });
@@ -28,6 +34,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Discount must be between 1 and 90 percent." }, { status: 400 });
   }
 
-  const offer = await prisma.offer.create({ data: { title, percent, couponCode } });
+  const offer = await prisma.offer.create({
+    data: { title, percent, couponCode, imageUrl, productIds },
+  });
   return NextResponse.json({ ok: true, offer }, { status: 201 });
 }

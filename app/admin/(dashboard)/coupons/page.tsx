@@ -26,6 +26,8 @@ export default async function AdminCouponsPage() {
           percent: o.percent,
           isActive: o.isActive,
           couponCode: o.couponCode,
+          imageUrl: o.imageUrl,
+          productIds: o.productIds,
         }))}
       />
       <CouponCreateForm />

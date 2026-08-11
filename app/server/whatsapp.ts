@@ -83,6 +83,15 @@ export async function sendWhatsAppText(to: string, body: string): Promise<void> 
 }
 
 /**
+ * Image with a caption — offer banners. Meta downloads `link` itself, so it
+ * must be a public https URL (the uploads box serves those). Same 24-hour
+ * window rule as text for free-form sends.
+ */
+export async function sendWhatsAppImage(to: string, link: string, caption: string): Promise<void> {
+  await post(requireConfig(), { to, type: "image", image: { link, caption } });
+}
+
+/**
  * Approved-template send. `bodyParams` fill {{1}}, {{2}}… in order.
  * `buttonParam` fills the first button's variable — the OTP for an
  * AUTHENTICATION template's copy-code button, or the dynamic path segment of

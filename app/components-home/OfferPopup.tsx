@@ -11,6 +11,8 @@ interface ActiveOffer {
   title: string;
   percent: number;
   couponCode: string | null;
+  imageUrl: string | null;
+  scope: "all" | "selected";
 }
 
 /**
@@ -95,14 +97,27 @@ export default function OfferPopup() {
               <X size={17} aria-hidden="true" />
             </button>
 
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-gold-50 text-gold-600">
-              <PartyPopper size={26} aria-hidden="true" />
-            </span>
+            {offer.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={offer.imageUrl}
+                alt=""
+                className="mx-auto max-h-44 w-full rounded-xl border border-line object-cover"
+              />
+            ) : (
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-gold-50 text-gold-600">
+                <PartyPopper size={26} aria-hidden="true" />
+              </span>
+            )}
 
             <h2 className="mt-4 text-promo font-bold text-ink">{offer.title}</h2>
-            <p className="mt-2 text-lead font-bold text-gold-600">{offer.percent}% OFF on everything</p>
+            <p className="mt-2 text-lead font-bold text-gold-600">
+              {offer.percent}% OFF {offer.scope === "selected" ? "on selected products" : "on everything"}
+            </p>
             <p className="mt-1.5 text-micro text-slate-500">
-              Prices across the store are already reduced — what you see is what you pay.
+              {offer.scope === "selected"
+                ? "The reduced prices are already showing on the products in this offer."
+                : "Prices across the store are already reduced — what you see is what you pay."}
             </p>
 
             {offer.couponCode && (

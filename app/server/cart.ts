@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { getOrCreateSessionId } from "./session";
-import { getActiveOffer, offerPrice } from "./offer";
+import { getActiveOffer, offerFor, offerPrice } from "./offer";
 import type { CartItem } from "@/app/components-home/lib/CartContext";
 import { Prisma } from "@/app/generated/prisma/client";
 
@@ -44,7 +44,7 @@ export async function serializeCart(cart: CartWithItems): Promise<SerializedCart
   const items: CartItem[] = cart.items.map((item) => ({
     id: item.product.slug,
     title: item.product.title,
-    price: offerPrice(item.product.price, offer),
+    price: offerPrice(item.product.price, offerFor(item.product.id, offer)),
     image: item.product.images[0]?.url ?? "",
     quantity: item.quantity,
     brand: item.product.brand.name,

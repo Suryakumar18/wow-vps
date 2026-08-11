@@ -30,13 +30,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await prisma.offer.update({ where: { id }, data: { isActive: false } });
   }
 
-  const data: { title?: string; percent?: number; couponCode?: string | null } = {};
+  const data: {
+    title?: string;
+    percent?: number;
+    couponCode?: string | null;
+    imageUrl?: string | null;
+    productIds?: string[];
+  } = {};
   if (typeof body.title === "string" && body.title.trim().length >= 3) data.title = body.title.trim();
   if (Number.isInteger(Number(body.percent)) && body.percent >= 1 && body.percent <= 90) {
     data.percent = Number(body.percent);
   }
   if (typeof body.couponCode === "string") {
     data.couponCode = body.couponCode.trim() ? body.couponCode.trim().toUpperCase() : null;
+  }
+  if (typeof body.imageUrl === "string") {
+    data.imageUrl = body.imageUrl.trim() ? body.imageUrl.trim() : null;
+  }
+  if (Array.isArray(body.productIds)) {
+    data.productIds = body.productIds
+      .filter((pid: unknown): pid is string => typeof pid === "string")
+      .slice(0, 500);
   }
   if (Object.keys(data).length > 0) await prisma.offer.update({ where: { id }, data });
 
