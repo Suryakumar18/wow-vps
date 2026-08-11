@@ -68,6 +68,9 @@ const nextConfig: NextConfig = {
       // CDN in front of them. Put the VPS behind a domain with TLS, or move
       // product images to a CDN and add it via IMAGE_HOSTS.
       { protocol: "http", hostname: "200.97.164.140" },
+      // The store's own domain — nginx serves /uploads/* there over TLS, and
+      // the upload API hands out these https URLs in production.
+      { protocol: "https", hostname: "wowlifestyle.online" },
       ...envImageHosts(),
     ],
     // AVIF first, WebP second, original as the fallback. On a page of 24

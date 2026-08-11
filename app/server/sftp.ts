@@ -18,7 +18,22 @@ const VPS_USERNAME = process.env.VPS_SSH_USER || "root";
 const VPS_PASSWORD = process.env.VPS_SSH_PASSWORD;
 
 export const UPLOAD_REMOTE_BASE = "/var/www/uploads";
-export const UPLOAD_PUBLIC_URL = `http://${VPS_HOST}/uploads`;
+
+/**
+ * Where uploaded files are served from, as browsers see them.
+ *
+ * The same nginx that runs the storefront serves /var/www/uploads at
+ * /uploads/* on the site's own https domain, so when a public https origin
+ * is configured the API hands out THAT url — a plain-http bare-IP url gets
+ * blocked as mixed content the moment it renders inside the https admin or
+ * storefront. Local dev (no https origin configured) keeps the http IP,
+ * which its own http pages load freely.
+ */
+export function uploadPublicBase(): string {
+  const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/+$/, "");
+  if (origin.startsWith("https://")) return `${origin}/uploads`;
+  return `http://${VPS_HOST}/uploads`;
+}
 
 /** Folders under /var/www/uploads on the VPS. */
 export type UploadFolder = "banners" | "brands" | "categories" | "products" | "users" | "videos";
@@ -82,7 +97,7 @@ export async function uploadBufferToVPS(
     const remoteDir = `${UPLOAD_REMOTE_BASE}/${folder}`;
     await mkdirIfMissing(sftp, remoteDir);
     await writeRemoteFile(sftp, `${remoteDir}/${filename}`, buffer);
-    return `${UPLOAD_PUBLIC_URL}/${folder}/${filename}`;
+    return `${uploadPublicBase()}/${folder}/${filename}`;
   } finally {
     conn.end();
   }
