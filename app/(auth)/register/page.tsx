@@ -9,7 +9,6 @@ import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
 import Checkbox from "@/app/components-home/ui/Checkbox";
 import OtpInput from "@/app/components-home/auth/OtpInput";
-import SocialAuthButtons from "@/app/components-home/auth/SocialAuthButtons";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -241,8 +240,6 @@ export default function RegisterPage() {
           <p aria-live="polite" className="min-h-[1.25rem] text-center text-nano text-slate-500">
             {notice}
           </p>
-
-          <SocialAuthButtons />
         </form>
       )}
 

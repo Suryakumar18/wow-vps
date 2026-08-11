@@ -7,7 +7,6 @@ import { BrandMark } from "@/app/components-home/ui/BrandLogo";
 import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
 import Checkbox from "@/app/components-home/ui/Checkbox";
-import SocialAuthButtons from "@/app/components-home/auth/SocialAuthButtons";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -107,8 +106,6 @@ export default function LoginPage() {
           {notice}
         </p>
       </form>
-
-      <SocialAuthButtons />
 
       <p className="mt-7 text-center text-micro text-slate-500">
         Don&apos;t have an account?{" "}

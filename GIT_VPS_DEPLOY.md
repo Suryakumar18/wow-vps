@@ -38,10 +38,13 @@ npm run build
 pm2 restart wowlifestyle
 ```
 
-If `prisma/schema.prisma` changed, push the schema before restarting:
+If `prisma/schema.prisma` changed, sync the database AND regenerate the
+client before building — `npm ci` regenerates it as a side effect, but a
+pull-only deploy does not, and the build fails on the new models without it:
 
 ```bash
 npx prisma db push
+npx prisma generate
 ```
 
 Check it's healthy:
