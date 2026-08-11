@@ -173,6 +173,34 @@ export async function sendOrderPlacedWhatsApp(input: OrderNotificationInput): Pr
   }
 }
 
+/**
+ * Order status update to the customer ("shipped", "delivered", "cancelled").
+ * Never throws — a failed message must not fail the admin's status change.
+ */
+export async function sendOrderStatusWhatsApp(input: {
+  phone: string;
+  orderNumber: string;
+  status: "SHIPPED" | "DELIVERED" | "CANCELLED";
+  name?: string | null;
+}): Promise<void> {
+  if (!whatsappConfigured()) return;
+  const to = canonicalPhone(input.phone);
+  if (!to) return;
+
+  const hello = input.name ? `Hi ${input.name}! ` : "";
+  const messages: Record<typeof input.status, string> = {
+    SHIPPED: `${hello}🚚 Your order ${input.orderNumber} has been shipped and is on its way. We'll let you know once it's delivered. — WOW Lifestyle`,
+    DELIVERED: `${hello}✅ Your order ${input.orderNumber} has been delivered. We hope you love it! Reply here if anything isn't right. — WOW Lifestyle`,
+    CANCELLED: `${hello}Your order ${input.orderNumber} has been cancelled. If this wasn't expected, reply here and we'll sort it out. — WOW Lifestyle`,
+  };
+
+  try {
+    await sendWhatsAppText(to, messages[input.status]);
+  } catch (err) {
+    console.error("WhatsApp status update failed:", err);
+  }
+}
+
 /** Template params: {{1}} customer name, {{2}} order number, {{3}} total. */
 async function sendCustomerOrderPing(to: string, i: OrderNotificationInput): Promise<void> {
   const template = process.env.WHATSAPP_ORDER_USER_TEMPLATE;

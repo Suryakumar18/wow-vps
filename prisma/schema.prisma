@@ -551,6 +551,23 @@ model Coupon {
   @@map("coupons")
 }
 
+/// A sitewide sale ("Aadi Offer — 18%"). While one is active, every price
+/// the storefront serves (cards, detail pages, cart, checkout totals and
+/// therefore order snapshots) is cut by `percent`. At most one is active at
+/// a time — activating one deactivates the rest. `couponCode` optionally
+/// surfaces an extra claimable coupon in the storefront's offer popup.
+model Offer {
+  id         String   @id @default(cuid())
+  title      String
+  percent    Int
+  isActive   Boolean  @default(false)
+  couponCode String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("offers")
+}
+
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------

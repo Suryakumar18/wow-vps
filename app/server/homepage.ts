@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
+import { getActiveOffer, offerPrice, offerOriginalPrice } from "./offer";
 import {
   heroSlides as staticHeroSlides,
   promoBanners as staticPromoBanners,
@@ -129,24 +130,29 @@ async function readDealProducts(limit: number): Promise<Product[]> {
         include: { brand: true, images: { orderBy: { position: "asc" }, take: 1 } },
       });
 
+  const offer = await getActiveOffer();
   return rows
-    .filter((r) => r.originalPrice > r.price)
+    .filter((r) => r.originalPrice > r.price || offer !== null)
     .sort((a, b) => b.originalPrice - b.price - (a.originalPrice - a.price))
     .slice(0, limit)
-    .map((row) => ({
-      id: row.slug,
-      title: row.title,
-      subtitle: row.brand.name,
-      price: row.price,
-      mrp: row.originalPrice,
-      discount: Math.round(((row.originalPrice - row.price) / row.originalPrice) * 100),
-      rating: row.rating,
-      reviews: row.numReviews,
-      stock: row.totalStock,
-      href: `/product/${row.slug}`,
-      src: row.images[0]?.url ?? "",
-      alt: row.title,
-    }));
+    .map((row) => {
+      const price = offerPrice(row.price, offer);
+      const mrp = offerOriginalPrice(row.price, row.originalPrice, offer);
+      return {
+        id: row.slug,
+        title: row.title,
+        subtitle: row.brand.name,
+        price,
+        mrp,
+        discount: Math.round(((mrp - price) / mrp) * 100),
+        rating: row.rating,
+        reviews: row.numReviews,
+        stock: row.totalStock,
+        href: `/product/${row.slug}`,
+        src: row.images[0]?.url ?? "",
+        alt: row.title,
+      };
+    });
 }
 
 /** "Popular Picks" — products flagged featured in the admin panel. */
@@ -163,21 +169,23 @@ async function readFeaturedProducts(limit: number): Promise<Product[]> {
   });
   if (rows.length === 0) return [...staticPopularPicks];
 
-  return rows.map((row) => ({
-    id: row.slug,
-    title: row.title,
-    subtitle: row.brand.name,
-    price: row.price,
-    mrp: row.originalPrice,
-    discount:
-      row.originalPrice > row.price
-        ? Math.round(((row.originalPrice - row.price) / row.originalPrice) * 100)
-        : undefined,
-    rating: row.rating,
-    reviews: row.numReviews,
-    stock: row.totalStock,
-    href: `/product/${row.slug}`,
-    src: row.images[0]?.url ?? "",
-    alt: row.title,
-  }));
+  const offer = await getActiveOffer();
+  return rows.map((row) => {
+    const price = offerPrice(row.price, offer);
+    const mrp = offerOriginalPrice(row.price, row.originalPrice, offer);
+    return {
+      id: row.slug,
+      title: row.title,
+      subtitle: row.brand.name,
+      price,
+      mrp,
+      discount: mrp > price ? Math.round(((mrp - price) / mrp) * 100) : undefined,
+      rating: row.rating,
+      reviews: row.numReviews,
+      stock: row.totalStock,
+      href: `/product/${row.slug}`,
+      src: row.images[0]?.url ?? "",
+      alt: row.title,
+    };
+  });
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
+import { getActiveOffer, offerPrice, offerOriginalPrice, type ActiveOffer } from "./offer";
 import {
   EMPTY_FACETS,
   IN_STOCK,
@@ -54,14 +55,14 @@ const cardSelect = {
 
 type CardRow = Prisma.ProductGetPayload<{ select: typeof cardSelect }>;
 
-const toCard = (p: CardRow): CatalogCard => ({
+const toCard = (p: CardRow, offer: ActiveOffer | null = null): CatalogCard => ({
   id: p.slug,
   title: p.title,
   brand: p.brand.name,
   categoryId: p.category.slug,
   subcategoryId: p.subcategory?.slug,
-  price: p.price,
-  originalPrice: p.originalPrice,
+  price: offerPrice(p.price, offer),
+  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offer),
   totalStock: p.totalStock,
   rating: p.rating,
   numReviews: p.numReviews,
@@ -81,14 +82,14 @@ const detailInclude = {
 
 type DetailRow = Prisma.ProductGetPayload<{ include: typeof detailInclude }>;
 
-const toProduct = (p: DetailRow): CatalogProduct => ({
+const toProduct = (p: DetailRow, offer: ActiveOffer | null = null): CatalogProduct => ({
   id: p.slug,
   title: p.title,
   brand: p.brand.name,
   categoryId: p.category.slug,
   subcategoryId: p.subcategory?.slug,
-  price: p.price,
-  originalPrice: p.originalPrice,
+  price: offerPrice(p.price, offer),
+  originalPrice: offerOriginalPrice(p.price, p.originalPrice, offer),
   totalStock: p.totalStock,
   rating: p.rating,
   numReviews: p.numReviews,
@@ -312,14 +313,15 @@ export async function queryCatalogDb(query: CatalogQuery = {}): Promise<CatalogR
   const where = fullWhere(query);
   const orderBy = ORDER_BY[query.sort ?? "newest"] ?? ORDER_BY.newest;
 
-  const [rows, total, facets] = await Promise.all([
+  const [rows, total, facets, offer] = await Promise.all([
     prisma.product.findMany({ where, orderBy, skip, take: limit, select: cardSelect }),
     prisma.product.count({ where }),
     query.withFacets === false ? Promise.resolve(EMPTY_FACETS) : loadFacets(query),
+    getActiveOffer(),
   ]);
 
   return {
-    products: rows.map(toCard),
+    products: rows.map((row) => toCard(row, offer)),
     total,
     hasMore: skip + rows.length < total,
     facets,
@@ -332,11 +334,14 @@ export async function queryCatalogDb(query: CatalogQuery = {}): Promise<CatalogR
  * this that's two identical round trips on every product view.
  */
 export const getProductDb = cache(async (slug: string): Promise<CatalogProduct | null> => {
-  const product = await prisma.product.findFirst({
-    where: { slug, isPublished: true },
-    include: detailInclude,
-  });
-  return product ? toProduct(product) : null;
+  const [product, offer] = await Promise.all([
+    prisma.product.findFirst({
+      where: { slug, isPublished: true },
+      include: detailInclude,
+    }),
+    getActiveOffer(),
+  ]);
+  return product ? toProduct(product, offer) : null;
 });
 
 /**
@@ -379,7 +384,8 @@ export async function getRelatedDb(slug: string, limit = 8): Promise<CatalogCard
   await take({ categoryId: product.categoryId });
   await take({});
 
-  return collected.map(toCard);
+  const offer = await getActiveOffer();
+  return collected.map((row) => toCard(row, offer));
 }
 
 /** Wishlist and any other "these exact products" read. */
@@ -392,10 +398,11 @@ export async function getProductsBySlugsDb(slugs: string[]): Promise<CatalogCard
 
   // Preserve the caller's order — the wishlist shows most-recently-saved first,
   // and `IN (…)` returns rows in whatever order the index hands them over.
+  const offer = await getActiveOffer();
   const bySlug = new Map(rows.map((r) => [r.slug, r]));
   return slugs.flatMap((slug) => {
     const row = bySlug.get(slug);
-    return row ? [toCard(row)] : [];
+    return row ? [toCard(row, offer)] : [];
   });
 }
 

@@ -3,6 +3,7 @@ import CartPanel from "./CartPanel";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import BottomNav from "./mobile/BottomNav";
+import OfferPopup from "./OfferPopup";
 import {
   getSettings,
   getBrand,
@@ -67,6 +68,7 @@ export default async function StorefrontShell({
       <div aria-hidden="true" className="h-[calc(3.5rem+env(safe-area-inset-bottom))] lg:hidden" />
       <CartPanel />
       <BottomNav />
+      <OfferPopup />
     </div>
   );
 }

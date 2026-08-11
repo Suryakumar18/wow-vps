@@ -4,16 +4,29 @@ import { TableCard, Th, Td, EmptyRow } from "../ui";
 import AdminPageHeader from "../PageHeader";
 import CouponCreateForm from "./CouponCreateForm";
 import CouponRowActions from "./CouponRowActions";
+import OffersManager from "./OffersManager";
 
 export default async function AdminCouponsPage() {
-  const coupons = await prisma.coupon.findMany({ orderBy: { code: "asc" } });
+  const [coupons, offers] = await Promise.all([
+    prisma.coupon.findMany({ orderBy: { code: "asc" } }),
+    prisma.offer.findMany({ orderBy: { createdAt: "desc" } }),
+  ]);
 
   return (
     <div>
       <AdminPageHeader
-        breadcrumb={[{ label: "Dashboard", href: "/admin" }, { label: "Coupons" }]}
-        title="Coupons"
-        description={`${coupons.length} coupon${coupons.length === 1 ? "" : "s"}`}
+        breadcrumb={[{ label: "Dashboard", href: "/admin" }, { label: "Offers & Coupons" }]}
+        title="Offers & Coupons"
+        description={`${offers.length} offer${offers.length === 1 ? "" : "s"} · ${coupons.length} coupon${coupons.length === 1 ? "" : "s"}`}
+      />
+      <OffersManager
+        offers={offers.map((o) => ({
+          id: o.id,
+          title: o.title,
+          percent: o.percent,
+          isActive: o.isActive,
+          couponCode: o.couponCode,
+        }))}
       />
       <CouponCreateForm />
 

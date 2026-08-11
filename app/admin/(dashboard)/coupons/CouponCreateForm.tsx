@@ -41,7 +41,29 @@ export default function CouponCreateForm() {
     <form onSubmit={onSubmit} noValidate className="mb-5 rounded-xl border border-line bg-white p-4">
       <div className="flex flex-wrap items-end gap-3">
         <Field label="Code" className="min-w-[9rem] flex-1">
-          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="WOW10" required />
+          <div className="flex gap-2">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="WOW10"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => {
+                // Unambiguous alphabet — no O/0 or I/1 lookalikes to mistype.
+                const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+                let random = "";
+                for (let i = 0; i < 6; i++) {
+                  random += alphabet[Math.floor(Math.random() * alphabet.length)];
+                }
+                setCode(`WOW-${random}`);
+              }}
+              className="shrink-0 rounded-lg border border-line px-3 text-nano font-semibold text-gold-700 transition-colors hover:border-gold-400 hover:bg-gold-50"
+            >
+              Generate
+            </button>
+          </div>
         </Field>
         <Field label="Discount %" className="min-w-[7rem]">
           <Input
