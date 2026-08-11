@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { BrandMark } from "@/app/components-home/ui/BrandLogo";
 import Button from "@/app/components-home/ui/Button";
 import TextField from "@/app/components-home/ui/TextField";
@@ -11,18 +12,34 @@ import { setCurrentUser } from "@/app/components-home/lib/useCurrentUser";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Indian mobile: 10 digits starting 6–9, with or without +91/91/0 prefix. */
+function validMobile(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "");
+  if (digits.length === 10) return /^[6-9]/.test(digits);
+  if (digits.length === 12 && digits.startsWith("91")) return /^[6-9]/.test(digits.slice(2));
+  return false;
+}
+
+/** Staggered entrance shared by every block on the card. */
+const rise = (delay: number) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, delay, ease: "easeOut" as const },
+});
+
 /**
  * Sign in — the single portal for customers and admins alike.
  *
- * The server decides where you land: `redirectTo` comes back as `/admin` for
- * an admin account and `/` for everyone else, so there's no second login
- * screen and no role choice exposed to whoever is typing.
+ * Customers log in with the mobile number they verified at registration;
+ * the same field accepts an email for accounts without a phone (the admin).
+ * The server decides where you land: `redirectTo` comes back as `/admin`
+ * for an admin account and `/` for everyone else.
  */
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -31,7 +48,9 @@ export default function LoginPage() {
     setNotice(null);
 
     const next: typeof errors = {};
-    if (!EMAIL.test(email)) next.email = "Enter a valid email address.";
+    if (!validMobile(identifier) && !EMAIL.test(identifier)) {
+      next.identifier = "Enter your mobile number (or email).";
+    }
     if (password.length < 6) next.password = "Password must be at least 6 characters.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -41,7 +60,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -67,37 +86,49 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="flex flex-col items-center text-center">
-        <BrandMark className="h-11 w-11" />
+      <motion.div {...rise(0)} className="flex flex-col items-center text-center">
+        <motion.span
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 18 }}
+        >
+          <BrandMark className="h-11 w-11" />
+        </motion.span>
         <p className="mt-4 text-nano font-bold uppercase tracking-[0.2em] text-gold-600">
           Welcome back
         </p>
         <h1 className="mt-2 text-promo font-bold text-ink">Login to Your Account</h1>
-        <p className="mt-1.5 text-micro text-slate-500">Enter your details to continue</p>
-      </div>
+        <p className="mt-1.5 text-micro text-slate-500">
+          Use your mobile number and password to continue
+        </p>
+      </motion.div>
 
       <form onSubmit={onSubmit} noValidate className="mt-7 flex flex-col gap-4">
-        <TextField
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          placeholder="Email Address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={errors.email}
-        />
+        <motion.div {...rise(0.08)}>
+          <TextField
+            label="Mobile number or email"
+            type="text"
+            autoComplete="username"
+            placeholder="Mobile Number"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            error={errors.identifier}
+          />
+        </motion.div>
 
-        <TextField
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
-        />
+        <motion.div {...rise(0.14)}>
+          <TextField
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={errors.password}
+          />
+        </motion.div>
 
-        <div className="flex items-center justify-between gap-3">
+        <motion.div {...rise(0.2)} className="flex items-center justify-between gap-3">
           <Checkbox label="Remember Me" name="remember" />
           <Link
             href="/login"
@@ -105,18 +136,27 @@ export default function LoginPage() {
           >
             Forgot Password?
           </Link>
-        </div>
+        </motion.div>
 
-        <Button type="submit" size="md" disabled={pending} className="mt-1 w-full">
-          {pending ? "Signing in…" : "Login"}
-        </Button>
+        <motion.div {...rise(0.26)}>
+          <Button type="submit" size="md" disabled={pending} className="mt-1 w-full">
+            {pending ? "Signing in…" : "Login"}
+          </Button>
+        </motion.div>
 
-        <p aria-live="polite" className="min-h-[1.25rem] text-center text-nano text-[#B91C1C]">
+        {/* Keyed on the message so a repeat failure shakes again. */}
+        <motion.p
+          key={notice ?? "no-notice"}
+          aria-live="polite"
+          animate={notice ? { x: [0, -7, 7, -4, 4, 0] } : {}}
+          transition={{ duration: 0.4 }}
+          className="min-h-[1.25rem] text-center text-nano font-semibold text-[#B91C1C]"
+        >
           {notice}
-        </p>
+        </motion.p>
       </form>
 
-      <p className="mt-7 text-center text-micro text-slate-500">
+      <motion.p {...rise(0.32)} className="mt-5 text-center text-micro text-slate-500">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
@@ -124,7 +164,7 @@ export default function LoginPage() {
         >
           Register Now
         </Link>
-      </p>
+      </motion.p>
     </>
   );
 }

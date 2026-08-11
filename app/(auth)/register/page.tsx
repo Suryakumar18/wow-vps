@@ -246,7 +246,10 @@ export default function RegisterPage() {
             {pending ? "Sending code…" : "Send Code on WhatsApp"}
           </Button>
 
-          <p aria-live="polite" className="min-h-[1.25rem] text-center text-nano text-slate-500">
+          <p
+            aria-live="polite"
+            className="min-h-[1.25rem] text-center text-nano font-semibold text-[#B91C1C]"
+          >
             {notice}
           </p>
         </form>
@@ -300,7 +303,10 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <p aria-live="polite" className="min-h-[1.25rem] text-center text-nano text-slate-500">
+          <p
+            aria-live="polite"
+            className="min-h-[1.25rem] text-center text-nano font-semibold text-[#B91C1C]"
+          >
             {notice}
           </p>
         </form>
@@ -372,7 +378,10 @@ export default function RegisterPage() {
             {pending ? "Creating account…" : "Create Account"}
           </Button>
 
-          <p aria-live="polite" className="min-h-[1.25rem] text-center text-nano text-slate-500">
+          <p
+            aria-live="polite"
+            className="min-h-[1.25rem] text-center text-nano font-semibold text-[#B91C1C]"
+          >
             {notice}
           </p>
         </form>
