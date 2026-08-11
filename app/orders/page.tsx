@@ -1,289 +1,299 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, ChevronRight, Loader2, PackageX, Circle, Star } from 'lucide-react';
-import NavbarHome from '@/app/components-main/NavbarHome'; 
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, PackageSearch, Phone, Search } from "lucide-react";
+import {
+  getOrders,
+  lookupOrdersByPhone,
+  type Order,
+  type OrderStatus,
+} from "@/app/components-home/lib/orders";
+import OrderStatusBadge from "@/app/components-home/OrderStatusBadge";
+import Container from "@/app/components-home/ui/Container";
+import Button from "@/app/components-home/ui/Button";
+import TextField from "@/app/components-home/ui/TextField";
+import { formatPrice } from "@/app/components-home/lib/format";
+import { cn } from "@/app/components-home/lib/cn";
 
-interface OrderItem {
-  productId: string;
-  title: string;
-  price: number;
-  quantity: number;
-  image: string;
-}
+const TABS: { key: "all" | OrderStatus; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "processing", label: "Processing" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "cancelled", label: "Cancelled" },
+];
 
-interface OrderData {
-  _id: string;
-  orderId: string;
-  totalAmount: number;
-  paymentMethod: string;
-  paymentStatus: string;
-  orderStatus: string;
-  createdAt: string;
-  items: OrderItem[];
-}
+const dateFormatter = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-interface DisplayItem extends OrderItem {
-  parentOrderId: string;
-  displayStatus: string;
-  orderDate: string;
-  deliveryDate: string; 
-}
+const PHONE_LOOKUP_STORAGE = "orders-lookup-phone";
 
-export default function MyOrdersPage() {
+/**
+ * My Orders — reads whatever Checkout has written for this browser session,
+ * plus a phone-number lookup fallback for shoppers who checked out as guests
+ * and are coming back from a fresh browser / new device.
+ */
+export default function OrdersPage() {
   const router = useRouter();
-  const [theme, setTheme] = useState<'dark' | 'light'>('light'); 
-  const [isLoading, setIsLoading] = useState(true);
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [sessionOrders, setSessionOrders] = useState<Order[] | null>(null);
+  const [lookupOrders, setLookupOrders] = useState<Order[] | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
 
-  // UI Filters state
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
-  const [timeFilters, setTimeFilters] = useState<string[]>([]); // Optional: implement time filtering similar to status
+  const [lookupPhone, setLookupPhone] = useState("");
+  const [lookupState, setLookupState] = useState<"idle" | "searching" | "done" | "error">("idle");
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleThemeChange = (event: CustomEvent) => {
-      if (event.detail) setTheme(event.detail as 'dark' | 'light');
+    let cancelled = false;
+    getOrders().then((data) => {
+      if (!cancelled) setSessionOrders(data);
+    });
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener('theme-change', handleThemeChange as EventListener);
-    const currentTheme = document.documentElement.getAttribute('data-theme') as 'dark' | 'light';
-    if (currentTheme) setTheme(currentTheme);
-
-    fetchMyOrders();
-
-    return () => window.removeEventListener('theme-change', handleThemeChange as EventListener);
   }, []);
 
-  const fetchMyOrders = async () => {
-    setIsLoading(true);
+  // If the shopper looked up by phone earlier in this browser, remember it and
+  // auto-run the search on next visit — losing the list on every reload would
+  // defeat the point of the lookup for a returning guest.
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(PHONE_LOOKUP_STORAGE) : null;
+    if (!saved) return;
+    setLookupPhone(saved);
+    setLookupState("searching");
+    lookupOrdersByPhone(saved).then((rows) => {
+      setLookupOrders(rows);
+      setLookupState("done");
+    });
+  }, []);
+
+  const runLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const phone = lookupPhone.trim();
+    if (phone.replace(/\D+/g, "").length < 8) {
+      setLookupError("Enter the phone number you used at checkout.");
+      return;
+    }
+    setLookupError(null);
+    setLookupState("searching");
+    const rows = await lookupOrdersByPhone(phone);
+    setLookupOrders(rows);
+    setLookupState("done");
     try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) {
-        router.push('/login');
-        return;
-      }
-      
-      const userData = JSON.parse(userStr);
-      const userId = userData._id || userData.id || '';
-      const email = userData.email || '';
-
-      // Pointing to your production backend
-      const response = await fetch(`/api/orders/my-orders?userId=${userId}&email=${email}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setOrders(data.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-    } finally {
-      setIsLoading(false);
+      localStorage.setItem(PHONE_LOOKUP_STORAGE, phone);
+    } catch {
+      /* localStorage unavailable */
     }
   };
 
-  // Handle Checkbox Toggles
-  const handleStatusToggle = (status: string) => {
-    setStatusFilters(prev => 
-      prev.includes(status) 
-        ? prev.filter(s => s !== status) 
-        : [...prev, status]
-    );
+  const clearLookup = () => {
+    setLookupOrders(null);
+    setLookupPhone("");
+    setLookupState("idle");
+    setLookupError(null);
+    try {
+      localStorage.removeItem(PHONE_LOOKUP_STORAGE);
+    } catch {
+      /* unavailable */
+    }
   };
 
-  const displayItems: DisplayItem[] = orders.flatMap(order => 
-    order.items.map(item => {
-      const orderDateObj = new Date(order.createdAt);
-      
-      // Estimated delivery is Order Date + 5 days
-      const deliveryDateObj = new Date(orderDateObj);
-      deliveryDateObj.setDate(deliveryDateObj.getDate() + 5);
-
-      return {
-        ...item,
-        parentOrderId: order.orderId,
-        // Using the REAL status from MongoDB modified by the admin
-        displayStatus: order.orderStatus || 'Processing', 
-        orderDate: orderDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        deliveryDate: deliveryDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      };
-    })
-  );
-
-  // Apply Search AND Status Filters
-  const filteredItems = displayItems.filter(item => {
-    // 1. Check Search Query
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-
-    // 2. Check Status Filters
-    let matchesStatus = true;
-    if (statusFilters.length > 0) {
-      matchesStatus = statusFilters.some(filter => {
-        // Map UI filters to Backend Statuses
-        if (filter === 'Cancelled') return item.displayStatus === 'Cancelled';
-        if (filter === 'Delivered') return item.displayStatus === 'Delivered';
-        if (filter === 'Returned') return item.displayStatus === 'Returned';
-        if (filter === 'On the way') return item.displayStatus === 'Shipped' || item.displayStatus === 'Processing';
-        return false;
-      });
-    }
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Dynamic UI formatting based on Real DB Status
-  const getStatusUI = (status: string, orderDate: string, deliveryDate: string) => {
-    if (status === 'Delivered') {
-      return { dot: 'bg-green-600', text: `Delivered on ${deliveryDate}`, subText: 'Your item has been delivered.' };
-    }
-    if (status === 'Cancelled') {
-      return { dot: 'bg-red-500', text: `Cancelled on ${orderDate}`, subText: 'Your order was cancelled.' };
-    }
-    if (status === 'Shipped') {
-      return { dot: 'bg-blue-500', text: `Shipped, arriving by ${deliveryDate}`, subText: 'Your item is on the way.' };
-    }
-    // Default / Processing
-    return { dot: 'bg-yellow-500', text: `Processing, expected by ${deliveryDate}`, subText: 'Your order is currently being packed.' };
-  };
+  // The two sources are dedupe-merged by order id — a shopper who looked up
+  // by phone AND placed a new order from the current session shouldn't see
+  // the new order listed twice.
+  const merged = mergeById(sessionOrders ?? [], lookupOrders ?? []);
+  const filtered = merged.filter((o) => tab === "all" || o.status === tab);
+  const showLookupForm =
+    sessionOrders !== null && sessionOrders.length === 0 && lookupOrders === null;
 
   return (
-    <div className={`min-h-screen ${theme === 'light' ? 'bg-[#f1f3f6]' : 'bg-[#0a0a0a]'} font-sans pb-12`}>
-      <NavbarHome theme={theme} toggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')} />
-
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-24 md:pt-32">
-        <div className={`flex items-center gap-2 text-xs mb-4 flex-wrap ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-          <span className="hover:text-blue-600 cursor-pointer" onClick={() => router.push('/')}>Home</span>
-          <ChevronRight size={12} />
-          <span className="hover:text-blue-600 cursor-pointer" onClick={() => router.push('/profile')}>My Account</span>
-          <ChevronRight size={12} />
-          <span className={theme === 'light' ? 'text-gray-800 font-medium' : 'text-gray-200 font-medium'}>My Orders</span>
+    <>
+      <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-sm lg:hidden">
+        <div className="flex h-14 items-center gap-1 px-2">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Go back"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-ink transition-colors hover:bg-mist"
+          >
+            <ArrowLeft size={19} aria-hidden="true" />
+          </button>
+          <p className="min-w-0 flex-1 truncate px-1 text-center text-ui font-bold text-ink">My Orders</p>
+          <span className="h-11 w-11 shrink-0" aria-hidden="true" />
         </div>
+      </header>
 
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className={`hidden md:block w-64 flex-shrink-0 rounded-sm shadow-sm p-5 h-fit ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-[#222]'}`}>
-            <h2 className={`text-lg font-medium mb-4 pb-3 border-b ${theme === 'light' ? 'text-gray-800 border-gray-200' : 'text-white border-[#333]'}`}>Filters</h2>
-            <div className="mb-6">
-              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>Order Status</h3>
-              <div className="space-y-3">
-                {['On the way', 'Delivered', 'Cancelled', 'Returned'].map(status => (
-                  <label key={status} className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={statusFilters.includes(status)}
-                      onChange={() => handleStatusToggle(status)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                    />
-                    <span className={`text-sm ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>{status}</span>
-                  </label>
-                ))}
+      <Container className="pt-4 lg:pt-8">
+        <h1 className="mb-4 hidden text-section font-bold text-ink lg:block">My Orders</h1>
+
+        {/* Phone lookup — appears when the session has zero orders (a new
+            browser for a returning customer). Also toggleable via
+            "Look up another number" once results are shown. */}
+        {showLookupForm && (
+          <motion.form
+            onSubmit={runLookup}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="mb-5 rounded-xl border border-line bg-white p-5"
+          >
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold-50 text-gold-600">
+                <Phone size={16} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-ui font-bold text-ink">Look up your orders</h2>
+                <p className="mt-0.5 text-nano text-slate-500">
+                  Enter the phone number you used at checkout to see every order placed to it.
+                </p>
               </div>
             </div>
-            <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${theme === 'light' ? 'text-gray-800' : 'text-gray-300'}`}>Order Time</h3>
-              <div className="space-y-3">
-                {['Last 30 days', '2024', '2023', 'Older'].map(time => (
-                  <label key={time} className="flex items-center gap-3 cursor-pointer group">
-                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span className={`text-sm ${theme === 'light' ? 'text-gray-700' : 'text-gray-400'}`}>{time}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className={`flex w-full mb-4 rounded-sm shadow-sm overflow-hidden ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-[#333]'}`}>
-              <input 
-                type="text" 
-                placeholder="Search your orders here" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`flex-1 px-4 py-3 outline-none text-sm w-full min-w-0 ${theme === 'light' ? 'bg-white text-gray-800' : 'bg-[#111] text-white placeholder-gray-600'}`}
+            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+              <TextField
+                label="Phone number"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="e.g. 98765 43210"
+                value={lookupPhone}
+                onChange={(e) => setLookupPhone(e.target.value)}
+                error={lookupError ?? undefined}
+                className="flex-1"
               />
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-3 text-sm font-medium flex items-center gap-2 transition-colors shrink-0">
-                <Search size={16} /> <span className="hidden sm:inline">Search Orders</span>
-              </button>
+              <Button
+                type="submit"
+                size="md"
+                className="sm:mt-6 sm:self-start"
+                disabled={lookupState === "searching"}
+              >
+                <Search size={14} aria-hidden="true" />
+                {lookupState === "searching" ? "Searching…" : "Find orders"}
+              </Button>
             </div>
+          </motion.form>
+        )}
 
-            <div className="space-y-4">
-              {isLoading ? (
-                <div className={`p-12 text-center rounded-sm shadow-sm flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-[#222]'}`}>
-                  <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
-                  <p className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Loading your orders...</p>
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className={`p-16 text-center rounded-sm shadow-sm flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-[#222]'}`}>
-                  <PackageX className="text-gray-300 mb-4" size={64} />
-                  <h3 className={`text-xl font-medium mb-2 ${theme === 'light' ? 'text-gray-800' : 'text-gray-200'}`}>No Orders Found</h3>
-                  <p className={theme === 'light' ? 'text-gray-500' : 'text-gray-400'}>Looks like you haven't placed any orders matching that filter.</p>
-                </div>
-              ) : (
-                filteredItems.map((item, idx) => {
-                  const statusUI = getStatusUI(item.displayStatus, item.orderDate, item.deliveryDate);
-
-                  return (
-                    <div 
-                      key={`${item.parentOrderId}-${idx}`} 
-                      className={`p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6 rounded-sm shadow-sm border transition-colors hover:shadow-md cursor-pointer ${
-                        theme === 'light' ? 'bg-white border-gray-100 hover:border-gray-200' : 'bg-[#111] border-[#222] hover:border-[#333]'
-                      }`}
-                    >
-                      {/* Product Info - Flex Row on Mobile */}
-                      <div className="flex gap-4 sm:gap-6 flex-1 min-w-0">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-white border border-gray-100 rounded">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-contain p-2" />
-                        </div>
-
-                        <div className="flex-1 min-w-0 flex flex-col justify-start">
-                          <h4 className={`text-sm font-medium line-clamp-2 mb-1 hover:text-blue-600 ${theme === 'light' ? 'text-gray-800' : 'text-gray-200'}`}>
-                            {item.title}
-                          </h4>
-                          <p className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-500' : 'text-gray-500'}`}>
-                            Qty: {item.quantity}
-                          </p>
-                          {/* Price visible only on mobile under the title */}
-                          <div className={`mt-2 text-sm font-medium sm:hidden ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`}>
-                            ₹{item.price.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Desktop Price */}
-                      <div className={`hidden sm:flex w-24 flex-shrink-0 justify-center text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`}>
-                        ₹{item.price.toLocaleString()}
-                      </div>
-
-                      {/* Status Section */}
-                      <div className={`w-full sm:w-72 flex-shrink-0 flex flex-col justify-start gap-1 pt-3 sm:pt-0 border-t sm:border-0 ${theme === 'light' ? 'border-gray-100' : 'border-white/10'}`}>
-                        <div className="flex items-center gap-2">
-                          <Circle size={10} className={`fill-current ${statusUI.dot.replace('bg-', 'text-')}`} />
-                          <span className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`}>
-                            {statusUI.text}
-                          </span>
-                        </div>
-                        <p className={`text-xs mt-1 leading-relaxed ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                          {statusUI.subText}
-                        </p>
-                        
-                        {item.displayStatus === 'Delivered' && (
-                          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium mt-3 flex items-center gap-1.5 w-fit">
-                            <Star size={16} className="fill-blue-600" /> Rate & Review Product
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+        {/* Small banner + "clear" affordance once a lookup returned results. */}
+        {lookupOrders !== null && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-gold-50 px-4 py-2.5 text-micro">
+            <Phone size={14} className="text-gold-600" aria-hidden="true" />
+            <span className="text-slate-600">
+              Showing orders for <span className="font-semibold text-ink">{lookupPhone}</span>
+              {lookupOrders.length > 0 && ` — ${lookupOrders.length} found`}
+            </span>
+            <button
+              type="button"
+              onClick={clearLookup}
+              className="ml-auto text-nano font-semibold text-gold-700 underline underline-offset-2 hover:text-gold-800"
+            >
+              Look up another number
+            </button>
           </div>
+        )}
+
+        <div className="-mx-gutter flex snap-x gap-2 overflow-x-auto px-gutter pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              aria-current={tab === t.key ? "page" : undefined}
+              className={cn(
+                "shrink-0 snap-start rounded-full border px-4 py-2 text-micro font-semibold transition-colors",
+                tab === t.key
+                  ? "border-gold-500 bg-gold-500 text-navy-900"
+                  : "border-line bg-white text-slate-600 hover:border-gold-300",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      </div>
-    </div>
+
+        {sessionOrders === null ? (
+          <ul className="mt-4 flex flex-col gap-3">
+            {Array.from({ length: 3 }, (_, i) => (
+              <li key={i} className="h-24 animate-pulse rounded-lg border border-line bg-mist" />
+            ))}
+          </ul>
+        ) : filtered.length === 0 ? (
+          <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-line bg-mist py-16 text-center">
+            <PackageSearch size={32} className="mb-3 text-slate-300" aria-hidden="true" />
+            <h2 className="text-ui font-bold text-ink">
+              {lookupOrders !== null && lookupOrders.length === 0
+                ? "No orders for that number"
+                : "No orders here yet"}
+            </h2>
+            <p className="mt-1 max-w-xs text-micro text-slate-500">
+              {lookupOrders !== null && lookupOrders.length === 0
+                ? "Double-check the digits or try a different phone number."
+                : merged.length === 0
+                  ? "Orders you place will show up here."
+                  : "No orders match this status."}
+            </p>
+            <Button href="/category/all" size="sm" className="mt-4">
+              Start shopping
+            </Button>
+          </div>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {filtered.map((order, index) => {
+              const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
+              const thumb = order.items[0];
+              return (
+                <motion.li
+                  key={order.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: index * 0.04, ease: "easeOut" }}
+                >
+                  <Link
+                    href={`/orders/${order.id}`}
+                    className="flex items-center gap-3 rounded-lg border border-line bg-white p-3.5 transition-colors hover:border-gold-300"
+                  >
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-mist">
+                      {thumb?.image && (
+                        <Image src={thumb.image} alt={thumb.title} fill sizes="64px" className="object-cover" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-micro font-semibold text-ink">
+                        {thumb?.title}
+                        {itemCount > 1 && ` +${itemCount - 1} more`}
+                      </p>
+                      <p className="mt-0.5 text-nano text-slate-500">
+                        {order.id} · {dateFormatter.format(new Date(order.placedAt))}
+                      </p>
+                      <p className="mt-1 text-micro font-bold tabular-nums text-ink">
+                        {formatPrice(order.totals.total)}
+                      </p>
+                    </div>
+                    <OrderStatusBadge status={order.status} />
+                  </Link>
+                </motion.li>
+              );
+            })}
+          </ul>
+        )}
+      </Container>
+    </>
   );
+}
+
+/** Session orders take precedence over lookup orders when both contain the
+ *  same order id, since the former are known to belong to this browser. */
+function mergeById(primary: Order[], secondary: Order[]): Order[] {
+  const seen = new Set(primary.map((o) => o.id));
+  const merged = [...primary];
+  for (const order of secondary) {
+    if (!seen.has(order.id)) {
+      merged.push(order);
+      seen.add(order.id);
+    }
+  }
+  merged.sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime());
+  return merged;
 }

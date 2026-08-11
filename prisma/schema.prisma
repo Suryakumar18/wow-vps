@@ -1,0 +1,599 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  name         String
+  /// Full role/permission tables land with the rest of the admin panel; a
+  /// flag is all that's needed until then.
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+  cart      Cart?
+  wishlist  Wishlist?
+
+  @@map("users")
+}
+
+/// One-time codes for WhatsApp phone verification (registration).
+///
+/// Only the HMAC of the code is stored — a leaked table can't be replayed.
+/// Rows are short-lived (5 minutes) and cleaned up opportunistically whenever
+/// the same phone requests a new code.
+model PhoneOtp {
+  id         String    @id @default(cuid())
+  /// Canonical digits-only form with country code, e.g. "919876543210".
+  phone      String
+  codeHash   String
+  /// What the code proves once verified. Only "register" today; checkout or
+  /// login OTP later reuse the same table with a different purpose.
+  purpose    String    @default("register")
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, purpose, createdAt(sort: Desc)])
+  @@map("phone_otps")
+}
+
+/// Created at checkout for customers who don't register. If they later create
+/// an account with the same phone/email, their data merges onto that User and
+/// this row is kept only as the historical link for past orders.
+model GuestCustomer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  createdAt DateTime @default(now())
+  mergedIntoUserId String?
+
+  addresses Address[]
+  orders    Order[]
+
+  @@index([phone])
+  @@map("guest_customers")
+}
+
+// ---------------------------------------------------------------------------
+// Address book
+// ---------------------------------------------------------------------------
+
+model Address {
+  id        String   @id @default(cuid())
+  label     String
+  name      String
+  phone     String
+  line1     String
+  city      String
+  state     String
+  pincode   String
+  country   String   @default("India")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  guestCustomerId String?
+  guestCustomer   GuestCustomer? @relation(fields: [guestCustomerId], references: [id], onDelete: Cascade)
+
+  /// Owner before checkout capture: an anonymous browser session that hasn't
+  /// become a GuestCustomer or User yet. Cleared once the address is claimed
+  /// by one of those at checkout.
+  sessionId String?
+
+  @@index([sessionId])
+  @@map("addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+model Category {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  /// Homepage tile presentation. `titleLine1`/`titleLine2` render on two lines
+  /// exactly as the approved desktop design does.
+  shortTitle String  @default("")
+  titleLine1 String  @default("")
+  titleLine2 String  @default("")
+  imageUrl   String  @default("")
+  imageAlt   String  @default("")
+  position   Int     @default(0)
+  showOnHome Boolean @default(true)
+  /// Whether this department appears in the storefront's main navigation.
+  showInNav  Boolean @default(true)
+
+  products      Product[]
+  subcategories Subcategory[]
+
+  @@map("categories")
+}
+
+/// A department's second level — "Monster Trucks" under "RC Cars".
+///
+/// Kept as its own model rather than a self-relation on Category so a product
+/// can't accidentally be filed under a top-level department and a child at the
+/// same time, and so the nav can render two clearly distinct levels.
+model Subcategory {
+  id       String  @id @default(cuid())
+  slug     String
+  name     String
+  position Int     @default(0)
+  isActive Boolean @default(true)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  products Product[]
+
+  /// Slugs only need to be unique within their department.
+  @@unique([categoryId, slug])
+  @@index([categoryId, position])
+  @@map("subcategories")
+}
+
+model Brand {
+  id   String @id @default(cuid())
+  name String @unique
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  /// The supplier's own identity for this product.
+  ///
+  /// Bulk imports match on this before slug, so re-running a price list after
+  /// someone has edited a title updates the existing row instead of creating a
+  /// second copy of every product. Null for anything created by hand in the
+  /// admin panel, which has no supplier behind it.
+  sku           String?  @unique
+  title         String
+  price         Int
+  originalPrice Int
+  totalStock    Int      @default(0)
+  /// Per-product shipping fee, in rupees. Summed once per line in the cart
+  /// (buying two of the same product ships once). 0 means free shipping.
+  shippingFee   Int      @default(0)
+  /// GST rate as an integer percentage, or 0 for "no GST on this product".
+  /// Kept as Int (not Boolean + percent) so the storefront can render "18% GST"
+  /// without a second column; setting it to 0 in the admin form disables tax.
+  gstPercent    Int      @default(0)
+  rating        Float    @default(0)
+  numReviews    Int      @default(0)
+  description   String
+  aboutFeatures String[]
+  idealFor      String[]
+  isPublished   Boolean  @default(true)
+  /// Drives the homepage's "Popular Picks" row.
+  isFeatured    Boolean  @default(false)
+  /// Drives the mobile "Deals of the Day" row.
+  isDeal        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  /// Optional: a product can sit directly under its department.
+  subcategoryId String?
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+
+  images         ProductImage[]
+  videos         ProductVideo[]
+  specifications ProductSpecification[]
+  colors         ProductColor[]
+  cartItems      CartItem[]
+  wishlistItems  WishlistItem[]
+  orderItems     OrderItem[]
+
+  // Admin-side filters, which query by relation without caring about publish
+  // state. The storefront's composite indexes below can't serve these.
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([brandId])
+
+  // ---------------------------------------------------------------------
+  // Storefront listing indexes.
+  //
+  // Every customer-facing query begins `WHERE isPublished = true`, then
+  // narrows by department, then orders. Leading with `isPublished` lets one
+  // index satisfy the filter *and* supply rows already in order, so paging
+  // deep into a 3,000-product department stays an index range scan instead of
+  // "read everything matching, sort it, throw most of it away".
+  //
+  // Sort direction is declared because a btree read backwards can't be
+  // combined with a forward-ordered prefix — `ORDER BY createdAt DESC` after
+  // an equality match on the leading columns needs the index built that way.
+  // ---------------------------------------------------------------------
+  @@index([isPublished, categoryId, createdAt(sort: Desc)])
+  @@index([isPublished, categoryId, price])
+  @@index([isPublished, subcategoryId, createdAt(sort: Desc)])
+  @@index([isPublished, createdAt(sort: Desc)])
+  @@index([isPublished, price])
+
+  // The two homepage rows, which read a handful of products out of thousands.
+  @@index([isPublished, isFeatured])
+  @@index([isPublished, isDeal])
+
+  // Search. A btree can't help `ILIKE '%term%'` — the leading wildcard makes it
+  // a full scan — so title search gets a trigram GIN index instead. It's
+  // declared here rather than added as loose SQL so `migrate diff` doesn't see
+  // it as drift and try to drop it on the next migration.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        String @id @default(cuid())
+  url       String
+  position  Int    @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVideo {
+  id        String @id @default(cuid())
+  url       String
+  position  Int    @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_videos")
+}
+
+model ProductSpecification {
+  id        String @id @default(cuid())
+  label     String
+  value     String
+  position  Int    @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_specifications")
+}
+
+/// One selectable colour for a product, with its own gallery. The gallery
+/// swaps the main product images on the detail page when the shopper picks
+/// this colour; if `images` is empty the product's default images are used.
+model ProductColor {
+  id        String   @id @default(cuid())
+  name      String
+  /// CSS hex colour picked by the admin (e.g. "#c9a55a"). Rendered directly
+  /// as the swatch background on the storefront — no name-to-hex guesswork.
+  /// Kept alongside `name` because the label ("Rose Gold") is what shoppers
+  /// read; the hex is only for the visual chip.
+  hex       String   @default("#000000")
+  /// Public image URLs, in gallery order. Same VPS pipeline as ProductImage,
+  /// but held as a plain array here so the admin form can hand a reorderable
+  /// list to the shared MediaUploader without another join table.
+  images    String[]
+  position  Int      @default(0)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_colors")
+}
+
+// ---------------------------------------------------------------------------
+// Cart — one row per identity (logged-in user or anonymous browser session)
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Opaque token stored in an httpOnly cookie for guests who haven't logged in.
+  sessionId String? @unique
+
+  items       CartItem[]
+  couponCode  String?
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  quantity  Int    @default(1)
+
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist — same identity model as Cart
+// ---------------------------------------------------------------------------
+
+model Wishlist {
+  id String @id @default(cuid())
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionId String? @unique
+
+  items WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id String @id @default(cuid())
+
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([wishlistId, productId])
+  @@map("wishlist_items")
+}
+
+/// In-app notifications for the admin bell.
+///
+/// Written when something happens the team should see (an order arrives, stock
+/// runs out). Read state is per-notification rather than per-admin: this is a
+/// small shared back office, so "someone has dealt with it" is the useful
+/// signal, not "have I personally seen it".
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  body      String
+  /// Where clicking it should take you, when there's somewhere to go.
+  href      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Homepage CMS
+//
+// The approved homepage design is fixed; these tables only supply its content.
+// Every reader falls back to the static copy in `data/home-content.ts` when a
+// table is empty, so an unseeded database still renders the approved page
+// rather than a blank one.
+// ---------------------------------------------------------------------------
+
+/// Every single-value string on the storefront: brand name, taglines, the
+/// newsletter copy, footer blurb, legal line, auth-page copy and so on.
+/// Keyed by dotted path (`brand.name`, `footer.legal`) so a reader asks for
+/// exactly what it needs and falls back to the static value when absent.
+model SiteSetting {
+  key       String   @id
+  value     String
+  /// Groups keys in the admin UI ("Brand", "Footer", "Newsletter"…).
+  group     String   @default("General")
+  /// Renders a textarea instead of a single-line input when true.
+  multiline Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@index([group])
+  @@map("site_settings")
+}
+
+/// Every repeating list of links/labels/icons on the storefront — nav items,
+/// mega-menu columns, announcement strips, footer columns, trust badges,
+/// social links, payment badges, product offers.
+///
+/// One table rather than a dozen near-identical ones: each row belongs to a
+/// `group` (a dotted path like `footer.quickLinks`) and fills in whichever of
+/// the optional fields that group actually uses. `parentId` gives the mega
+/// menu its three levels without extra tables.
+model ContentItem {
+  id       String @id @default(cuid())
+  group    String
+  position Int    @default(0)
+  isActive Boolean @default(true)
+
+  label    String?
+  sublabel String?
+  href     String?
+  icon     String?
+  imageUrl String?
+  imageAlt String?
+  /// Group-specific extra: a tone, a Tailwind class for a social tile, a
+  /// coupon code. Documented per group in `app/server/content.ts`.
+  extra    String?
+
+  parentId String?
+  parent   ContentItem?  @relation("ContentTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children ContentItem[] @relation("ContentTree")
+
+  updatedAt DateTime @updatedAt
+
+  @@index([group, position])
+  @@index([parentId])
+  @@map("content_items")
+}
+
+model HeroSlide {
+  id          String   @id @default(cuid())
+  eyebrow     String
+  titleLine1  String
+  titleLine2  String   @default("")
+  description String
+  ctaLabel    String
+  ctaHref     String
+  /// The three script words under the copy ("Play", "Build", "Explore").
+  scriptWords String[]
+  imageUrl    String
+  imageAlt    String
+  position    Int      @default(0)
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  @@map("hero_slides")
+}
+
+enum BannerPlacement {
+  PROMO
+  LIFESTYLE
+}
+
+enum BannerTone {
+  DARK
+  LIGHT
+  CREAM
+}
+
+model Banner {
+  id          String          @id @default(cuid())
+  placement   BannerPlacement
+  tone        BannerTone      @default(DARK)
+  eyebrow     String?
+  titleLine1  String
+  titleLine2  String          @default("")
+  description String
+  ctaLabel    String
+  ctaHref     String
+  imageUrl    String
+  imageAlt    String
+  position    Int             @default(0)
+  isActive    Boolean         @default(true)
+  updatedAt   DateTime        @updatedAt
+
+  @@index([placement, position])
+  @@map("banners")
+}
+
+// ---------------------------------------------------------------------------
+// Coupons
+// ---------------------------------------------------------------------------
+
+model Coupon {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  percentOff Int
+  minOrder   Int
+  active     Boolean  @default(true)
+
+  @@map("coupons")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryMethod {
+  STANDARD
+  EXPRESS
+}
+
+model Order {
+  id           String         @id @default(cuid())
+  orderNumber  String         @unique
+  status       OrderStatus    @default(PROCESSING)
+  deliveryMethod     DeliveryMethod
+  paymentMethodLabel String
+  subtotal     Int
+  discount     Int
+  shipping     Int
+  gst          Int  @default(0)
+  total        Int
+  placedAt     DateTime       @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  guestCustomerId String?
+  guestCustomer   GuestCustomer? @relation(fields: [guestCustomerId], references: [id])
+
+  /// Owner before checkout captures a GuestCustomer/User — same anonymous
+  /// browser-session pattern as Address, so `/orders` can list "this
+  /// browser's" orders pre-checkout-capture.
+  sessionId String?
+
+  // Address is snapshotted as plain fields, not a live FK: the two seeded
+  // showcase addresses aren't real Address rows at all, and even for a real
+  // saved address, an order must not change retroactively if that address is
+  // later edited or deleted.
+  addressLabel String
+  addressName  String?
+  addressLine  String
+  addressPhone String
+
+  // Razorpay handles, captured at verify-time. Nullable because a legacy row
+  // (or a future non-Razorpay path) may not have them.
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([guestCustomerId])
+  @@index([sessionId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id       String @id @default(cuid())
+  quantity Int
+
+  // Snapshotted at order time so a later price/title change on the product
+  // never rewrites history.
+  titleSnapshot String
+  priceSnapshot Int
+  imageSnapshot String
+
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}

@@ -14,16 +14,33 @@
   --text-light: #e5e7eb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* Dark values apply only when the user has explicitly chosen dark, never from the
+   OS preference. The site defaults to light on every device — previously a phone
+   with OS dark mode on forced body text to white over the light backgrounds. */
+:root[data-theme="dark"] {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
+}
+
+/* Expands a small icon control to a 44x44 touch target (WCAG 2.5.5 / Apple HIG)
+   without changing its rendered size or shifting layout. Requires the element to be
+   positioned (relative/absolute).
+   Only use this where the element has no close neighbours: the overlay extends
+   beyond the visible control and will steal taps from anything within ~22px. For
+   controls sitting in a row, give them a real 44px box instead. */
+.tap-44::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');

@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import StorefrontShell from "@/app/components-home/StorefrontShell";
 
-export const metadata: Metadata = {
-  title: "Checkout",
-  description: "Complete your purchase at WOW Lifestyle Thuriur.",
-  robots: { index: false, follow: false },
-};
-
+/** Checkout supplies its own compact mobile header, so the site header steps aside below `lg`. */
 export default function CheckoutLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <StorefrontShell hideHeaderBelowLg>{children}</StorefrontShell>;
 }

@@ -1,19 +1,21 @@
-import { NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
-import Category from "@/lib/models/Category";
-import { requireAdmin } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/app/server/prisma";
+import { requireAdmin } from "@/app/server/adminGuard";
+import { revalidateStorefront } from "@/app/server/revalidate";
 
-export async function GET() {
-  await connectDB();
-  const categories = await Category.find({}).sort({ createdAt: -1 });
-  return Response.json({ success: true, data: categories });
-}
+export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
-export async function POST(req: NextRequest) {
-  await connectDB();
-  const result = requireAdmin(req);
-  if ("error" in result) return result.error;
-  const { name } = await req.json();
-  const category = await Category.create({ name });
-  return Response.json({ success: true, data: category }, { status: 201 });
+  const body = await request.json().catch(() => null);
+  const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  if (!slug || !name) return NextResponse.json({ error: "slug and name are required" }, { status: 400 });
+
+  const existing = await prisma.category.findUnique({ where: { slug } });
+  if (existing) return NextResponse.json({ error: "That slug is already in use." }, { status: 409 });
+
+  const category = await prisma.category.create({ data: { slug, name } });
+  revalidateStorefront();
+  return NextResponse.json(category, { status: 201 });
 }

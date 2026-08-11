@@ -1,40 +1,23 @@
-import { NextRequest } from "next/server";
-import { connectDB } from "@/lib/db";
-import Notification from "@/lib/models/Notification";
-import { requireAdmin } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { prisma } from "@/app/server/prisma";
+import { requireAdmin } from "@/app/server/adminGuard";
 
-/** GET → recent admin notifications + unread count (newest first). */
-export async function GET(req: NextRequest) {
-  await connectDB();
-  const result = requireAdmin(req);
-  if ("error" in result) return result.error;
+export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
-  const [items, unreadCount] = await Promise.all([
-    Notification.find({ audience: "admin" }).sort({ createdAt: -1 }).limit(30).lean(),
-    Notification.countDocuments({ audience: "admin", read: false }),
+  const [items, unread] = await Promise.all([
+    prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.notification.count({ where: { isRead: false } }),
   ]);
-
-  return Response.json({ success: true, data: items, unreadCount });
+  return NextResponse.json({ items, unread });
 }
 
-/**
- * PATCH → mark notifications read.
- * Body: { ids: string[] } to mark specific ones, or { all: true } to mark all read.
- */
-export async function PATCH(req: NextRequest) {
-  await connectDB();
-  const result = requireAdmin(req);
-  if ("error" in result) return result.error;
+/** Marks everything read — the "mark all as read" action on the bell. */
+export async function PATCH() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
-  const body = await req.json().catch(() => ({}));
-  const { ids, all } = body as { ids?: string[]; all?: boolean };
-
-  const filter = all
-    ? { audience: "admin", read: false }
-    : { audience: "admin", _id: { $in: Array.isArray(ids) ? ids : [] } };
-
-  await Notification.updateMany(filter, { $set: { read: true } });
-  const unreadCount = await Notification.countDocuments({ audience: "admin", read: false });
-
-  return Response.json({ success: true, unreadCount });
+  await prisma.notification.updateMany({ where: { isRead: false }, data: { isRead: true } });
+  return NextResponse.json({ ok: true });
 }

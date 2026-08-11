@@ -1,0 +1,18 @@
+node_modules
+.next
+.next-verify
+out
+.git
+.env
+.env.*
+*.log
+*.tsbuildinfo
+.vercel
+.claude
+.agents
+.windsurf
+# Generated during the image build, not copied into it.
+app/generated
+# Import fixtures — never part of an image.
+catalog-*.csv
+*.csv

@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import StorefrontShell from "@/app/components-home/StorefrontShell";
 
-export const metadata: Metadata = {
-  title: "My Orders",
-  description: "View and track your orders at WOW Lifestyle Thuriur.",
-  robots: { index: false, follow: false },
-};
-
+/** Orders screens supply their own compact mobile header, so the site header steps aside below `lg`. */
 export default function OrdersLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <StorefrontShell hideHeaderBelowLg>{children}</StorefrontShell>;
 }

@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "./components-main/CartContext";
-import PushNotificationSetup from "./components-main/PushNotificationSetup";
+import { CartProvider } from "./components-home/lib/CartContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -72,7 +71,6 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
-  manifest: "/site.webmanifest",
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || "",
   },
@@ -82,10 +80,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
+  // The site always starts light, so the mobile browser chrome must match. Keying
+  // this off the OS preference turned the status bar black over a light page.
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -125,10 +122,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        <CartProvider>
-          <PushNotificationSetup />
-          {children}
-        </CartProvider>
+        <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );
