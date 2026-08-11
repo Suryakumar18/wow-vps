@@ -2,6 +2,7 @@
 "use client";
 
 import { Fragment } from "react";
+import Image from "next/image";
 import { cn } from "./lib/cn";
 
 /**
@@ -163,20 +164,38 @@ export default function RichText({ text, className }: { text: string; className?
                 ))}
               </ul>
             );
-          case "image":
-            return (
+          case "image": {
+            const alignClass = cn(
+              block.align === "center" && "mx-auto",
+              block.align === "right" && "ml-auto",
+            );
+            // The uploads box serves plain http, which an https storefront
+            // blocks as mixed content — next/image proxies those through the
+            // optimizer (its host is whitelisted in next.config). Arbitrary
+            // https URLs pasted by an admin render directly.
+            return block.url.startsWith("http://") ? (
+              <Image
+                key={i}
+                src={block.url}
+                alt=""
+                width={1200}
+                height={800}
+                sizes="(min-width: 1024px) 60rem, 100vw"
+                className={cn(
+                  "h-auto w-auto max-h-[32rem] max-w-full rounded-lg border border-line",
+                  alignClass,
+                )}
+              />
+            ) : (
               <img
                 key={i}
                 src={block.url}
                 alt=""
                 loading="lazy"
-                className={cn(
-                  "max-h-[32rem] max-w-full rounded-lg border border-line",
-                  block.align === "center" && "mx-auto",
-                  block.align === "right" && "ml-auto",
-                )}
+                className={cn("max-h-[32rem] max-w-full rounded-lg border border-line", alignClass)}
               />
             );
+          }
           default:
             return (
               <p
