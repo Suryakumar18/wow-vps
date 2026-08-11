@@ -28,6 +28,21 @@ import { cn } from "@/app/components-home/lib/cn";
  * product page and everything already saved keep working unchanged.
  */
 
+/**
+ * The uploads box serves plain http, which an https admin page blocks as
+ * mixed content — so the editor DISPLAYS those images through the app's own
+ * image optimizer (same-origin, https), while the document keeps the raw
+ * URL. The storefront renderer does the same on the product page.
+ */
+const displaySrc = (src: string) =>
+  src.startsWith("http://") ? `/_next/image?url=${encodeURIComponent(src)}&w=1080&q=75` : src;
+
+const EditorImage = TipTapImage.extend({
+  renderHTML({ HTMLAttributes }) {
+    return ["img", { ...HTMLAttributes, src: displaySrc(String(HTMLAttributes.src ?? "")) }];
+  },
+}).configure({ inline: true });
+
 /* ---------------- markup ⇄ TipTap document conversion ------------------- */
 
 function inlineFromText(text: string): JSONContent[] {
@@ -156,7 +171,7 @@ export default function RichEditor({
         orderedList: false,
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      TipTapImage.configure({ inline: true }),
+      EditorImage,
     ],
     content: markupToDoc(value),
     onUpdate: ({ editor: e }) => onChange(docToMarkup(e.getJSON())),
