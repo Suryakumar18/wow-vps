@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Home, LayoutGrid, Percent, Heart, User } from "lucide-react";
+import { Home, LayoutGrid, LogOut, Package, Pencil, Percent, Heart, User } from "lucide-react";
 import BottomSheet from "../ui/BottomSheet";
 import Icon, { type IconName } from "../ui/Icon";
 import Badge from "../ui/Badge";
 import { useWishlistIds } from "../WishlistButton";
 import { allCategories } from "../data/home-content";
 import { cn } from "../lib/cn";
-import { useCurrentUser } from "../lib/useCurrentUser";
+import { setCurrentUser, useCurrentUser } from "../lib/useCurrentUser";
 
 type Tab = {
   key: string;
@@ -53,14 +53,27 @@ const TABS: Tab[] = [
  */
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const wishlist = useWishlistIds();
   const user = useCurrentUser();
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  // Signed-in customers get an account sheet (orders / profile / logout);
+  // guests go straight to the login page.
+  const [accountOpen, setAccountOpen] = useState(false);
 
-  const activeIndex = categoriesOpen ? 1 : TABS.findIndex((t) => t.match?.(pathname));
+  const activeIndex = categoriesOpen
+    ? 1
+    : accountOpen
+      ? TABS.length - 1
+      : TABS.findIndex((t) => t.match?.(pathname));
 
-  /** Signed-in customers land on their orders, guests on the login page. */
-  const hrefFor = (tab: Tab) => (tab.key === "account" && user ? "/orders" : tab.href);
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setCurrentUser(null);
+    setAccountOpen(false);
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <>
@@ -108,21 +121,38 @@ export default function BottomNav() {
               active ? "text-gold-600" : "text-slate-500 hover:text-ink",
             );
 
-            return tab.sheet || !tab.href ? (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setCategoriesOpen(true)}
-                aria-expanded={categoriesOpen}
-                aria-haspopup="dialog"
-                className={classes}
-              >
-                {content}
-              </button>
-            ) : (
+            if (tab.sheet || !tab.href) {
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setCategoriesOpen(true)}
+                  aria-expanded={categoriesOpen}
+                  aria-haspopup="dialog"
+                  className={classes}
+                >
+                  {content}
+                </button>
+              );
+            }
+            if (tab.key === "account" && user) {
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setAccountOpen(true)}
+                  aria-expanded={accountOpen}
+                  aria-haspopup="dialog"
+                  className={classes}
+                >
+                  {content}
+                </button>
+              );
+            }
+            return (
               <Link
                 key={tab.key}
-                href={hrefFor(tab) ?? "/"}
+                href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={classes}
               >
@@ -132,6 +162,52 @@ export default function BottomNav() {
           })}
         </div>
       </nav>
+
+      <BottomSheet
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        title="My Account"
+        description={user ? `Signed in as ${user.name}` : undefined}
+      >
+        <ul className="pb-2">
+          <li>
+            <Link
+              href="/orders"
+              onClick={() => setAccountOpen(false)}
+              className="flex min-h-[3rem] items-center gap-3 rounded-lg px-1 text-nav-micro text-ink transition-colors hover:bg-gold-50"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mist text-gold-600">
+                <Package size={16} aria-hidden="true" />
+              </span>
+              Your Orders
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/account"
+              onClick={() => setAccountOpen(false)}
+              className="flex min-h-[3rem] items-center gap-3 rounded-lg px-1 text-nav-micro text-ink transition-colors hover:bg-gold-50"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mist text-gold-600">
+                <Pencil size={16} aria-hidden="true" />
+              </span>
+              Profile — name, email &amp; password
+            </Link>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex min-h-[3rem] w-full items-center gap-3 rounded-lg px-1 text-nav-micro font-semibold text-[#B91C1C] transition-colors hover:bg-[#FEF2F2]"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#FEF2F2] text-[#B91C1C]">
+                <LogOut size={16} aria-hidden="true" />
+              </span>
+              Logout
+            </button>
+          </li>
+        </ul>
+      </BottomSheet>
 
       <BottomSheet
         open={categoriesOpen}
