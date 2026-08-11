@@ -15,7 +15,7 @@ import {
   List,
   Pilcrow,
 } from "lucide-react";
-import { parseRichBlocks } from "@/app/components-home/RichText";
+import { looksLikeImageUrl, parseRichBlocks } from "@/app/components-home/RichText";
 import { cn } from "@/app/components-home/lib/cn";
 
 /**
@@ -127,7 +127,10 @@ export function docToMarkup(doc: JSONContent): string {
     } else if (node.type === "paragraph") {
       const image = node.content?.find((c) => c.type === "image");
       if (image?.attrs?.src) {
-        lines.push(`${alignPrefix(node.attrs)}${String(image.attrs.src)}`, "");
+        const src = String(image.attrs.src);
+        // Hosts the renderer's heuristic wouldn't recognise as images get the
+        // explicit [img] marker so they can't fall back to plain text.
+        lines.push(`${alignPrefix(node.attrs)}${looksLikeImageUrl(src) ? src : `[img] ${src}`}`, "");
       } else {
         const text = inlineToMarkup(node.content).trim();
         if (text) lines.push(`${alignPrefix(node.attrs)}${text}`, "");

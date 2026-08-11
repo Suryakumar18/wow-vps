@@ -33,9 +33,29 @@ export type RichBlock =
   | { type: "image"; url: string; align: RichAlign };
 
 const ALIGN_PREFIX = /^\[(left|center|right)\]\s*/i;
-const IMAGE_LINE = /^https?:\/\/\S+\.(?:png|jpe?g|webp|gif|avif)(?:\?\S*)?$/i;
+const IMAGE_EXPLICIT = /^\[img\]\s*(https?:\/\/\S+)$/i;
+const BARE_URL = /^https?:\/\/\S+$/i;
 const BULLET = /^(?:[-•*])\s+(.*)$/;
 const HEADING = /^#{1,3}\s+(.*)$/;
+
+/**
+ * Whether a lone URL should render as an image. Extension is the strong
+ * signal, but CDN links often carry none (images.unsplash.com, the VPS
+ * uploads box), so known image sources qualify too. Anything else can be
+ * forced with an explicit `[img] <url>` line — which the admin editor emits
+ * automatically for hosts this heuristic wouldn't recognise.
+ */
+export function looksLikeImageUrl(url: string): boolean {
+  if (/\.(?:png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(url)) return true;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "images.unsplash.com") return true;
+    if (parsed.pathname.includes("/uploads/")) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 export function parseRichBlocks(text: string): RichBlock[] {
   const blocks: RichBlock[] = [];
@@ -66,7 +86,12 @@ export function parseRichBlocks(text: string): RichBlock[] {
       continue;
     }
 
-    if (IMAGE_LINE.test(line)) {
+    const explicitImage = line.match(IMAGE_EXPLICIT);
+    if (explicitImage) {
+      blocks.push({ type: "image", url: explicitImage[1], align });
+      continue;
+    }
+    if (BARE_URL.test(line) && looksLikeImageUrl(line)) {
       blocks.push({ type: "image", url: line, align });
       continue;
     }

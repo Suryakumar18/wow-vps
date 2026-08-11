@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
+  BadgeCheck,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -12,14 +13,17 @@ import {
   Play,
   Share2,
   ShoppingCart,
+  Star,
 } from "lucide-react";
 
 import { useCart } from "@/app/components-home/lib/CartContext";
 import { getWishlist, toggleWishlistItem } from "@/app/components-home/lib/wishlist";
+import { useCurrentUser } from "@/app/components-home/lib/useCurrentUser";
 import Container from "@/app/components-home/ui/Container";
 import Button from "@/app/components-home/ui/Button";
 import Badge from "@/app/components-home/ui/Badge";
 import Rating from "@/app/components-home/ui/Rating";
+import TextField from "@/app/components-home/ui/TextField";
 import Icon, { type IconName } from "@/app/components-home/ui/Icon";
 import BottomSheet from "@/app/components-home/ui/BottomSheet";
 import ProductCard from "@/app/components-home/ProductCard";
@@ -625,20 +629,115 @@ export default function ProductDetailClient({ product, related }: Props) {
   );
 }
 
+interface ReviewRow {
+  id: string;
+  rating: number;
+  body: string;
+  name: string;
+  isVerified: boolean;
+  createdAt: string;
+}
+
+const reviewDate = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
 /**
  * Full-width "Detailed Description" / "Reviews" tabs under the buy area —
  * the long-form write-up authored in the admin's rich editor gets the whole
- * screen width, the way hobby stores present their spec sheets.
+ * screen width, and customers read and write reviews in the second tab.
  */
 function DetailTabs({ product }: { product: CatalogProduct }) {
   const [tab, setTab] = useState<"description" | "reviews">("description");
+  const user = useCurrentUser();
+
+  const [reviews, setReviews] = useState<ReviewRow[] | null>(null);
+  const [summary, setSummary] = useState<{ average: number; count: number } | null>(null);
+
+  const [formRating, setFormRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [formName, setFormName] = useState("");
+  const [formText, setFormText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [formNotice, setFormNotice] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Signed-in customers review under their account name.
+  useEffect(() => {
+    if (user && !formName) setFormName(user.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Reviews load once, the first time the tab is opened.
+  useEffect(() => {
+    if (tab !== "reviews" || reviews !== null) return;
+    let cancelled = false;
+    fetch(`/api/products/${encodeURIComponent(product.id)}/reviews`)
+      .then((res) => (res.ok ? res.json() : { reviews: [], summary: { average: 0, count: 0 } }))
+      .then((body) => {
+        if (cancelled) return;
+        setReviews(body.reviews ?? []);
+        setSummary(body.summary ?? { average: 0, count: 0 });
+      })
+      .catch(() => {
+        if (!cancelled) setReviews([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, reviews, product.id]);
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormNotice(null);
+    if (formRating === 0) {
+      setFormNotice("Tap the stars to rate this product.");
+      return;
+    }
+    if (formName.trim().length < 2) {
+      setFormNotice("Enter your name.");
+      return;
+    }
+    if (formText.trim().length < 5) {
+      setFormNotice("Tell us a little more about the product.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formName, rating: formRating, body: formText }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setFormNotice(body?.error ?? "Couldn't save your review — try again.");
+        if (res.status === 409) setSubmitted(true);
+        return;
+      }
+      setReviews((prev) => [body.review, ...(prev ?? [])]);
+      setSummary((prev) => {
+        const count = (prev?.count ?? 0) + 1;
+        const total = (prev?.average ?? 0) * (prev?.count ?? 0) + body.review.rating;
+        return { average: total / count, count };
+      });
+      setSubmitted(true);
+    } catch {
+      setFormNotice("Couldn't reach the server — try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Live count once loaded; the seeded catalogue number until then.
+  const reviewCount = summary?.count ?? product.numReviews;
+  const averageShown = summary && summary.count > 0 ? summary.average : product.rating;
 
   const tabs = [
     { key: "description" as const, label: "Detailed Description" },
-    {
-      key: "reviews" as const,
-      label: `Reviews${product.numReviews > 0 ? ` (${product.numReviews})` : ""}`,
-    },
+    { key: "reviews" as const, label: `Reviews${reviewCount > 0 ? ` (${reviewCount})` : ""}` },
   ];
 
   return (
@@ -675,17 +774,118 @@ function DetailTabs({ product }: { product: CatalogProduct }) {
             </p>
           )
         ) : (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Rating value={product.rating} size={18} />
-            <p className="text-micro font-semibold text-ink">
-              {product.rating.toFixed(1)} out of 5
-              {product.numReviews > 0 &&
-                ` · ${product.numReviews} ${product.numReviews === 1 ? "rating" : "ratings"}`}
-            </p>
-            <p className="max-w-sm text-nano text-slate-500">
-              Written reviews are coming soon. Bought this product? Tell us about it on WhatsApp
-              and we&apos;ll feature your review here.
-            </p>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            {/* Review list */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <Rating value={averageShown} size={18} />
+                <p className="text-micro font-semibold text-ink">
+                  {averageShown.toFixed(1)} out of 5
+                  {reviewCount > 0 &&
+                    ` · ${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}`}
+                </p>
+              </div>
+
+              {reviews === null ? (
+                <ul className="mt-5 flex flex-col gap-3">
+                  {Array.from({ length: 3 }, (_, i) => (
+                    <li key={i} className="h-20 animate-pulse rounded-lg border border-line bg-mist" />
+                  ))}
+                </ul>
+              ) : reviews.length === 0 ? (
+                <p className="mt-5 text-micro text-slate-500">
+                  No written reviews yet — be the first to review this product.
+                </p>
+              ) : (
+                <ul className="mt-5 flex flex-col divide-y divide-line">
+                  {reviews.map((review) => (
+                    <li key={review.id} className="py-4 first:pt-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Rating value={review.rating} size={13} />
+                        <span className="text-micro font-semibold text-ink">{review.name}</span>
+                        {review.isVerified && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F6EE] px-2 py-0.5 text-nano font-semibold text-[#15803D]">
+                            <BadgeCheck size={11} aria-hidden="true" />
+                            Verified Buyer
+                          </span>
+                        )}
+                        <span className="text-nano text-slate-400">
+                          {reviewDate.format(new Date(review.createdAt))}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-line text-micro leading-relaxed text-slate-600">
+                        {review.body}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Write a review */}
+            <div className="lg:border-l lg:border-line lg:pl-8">
+              <h3 className="text-ui font-bold text-ink">Write a Review</h3>
+              {submitted ? (
+                <p className="mt-3 rounded-lg bg-[#E8F6EE] px-4 py-3 text-micro text-[#15803D]">
+                  Thank you! Your review is live on this page.
+                </p>
+              ) : (
+                <form onSubmit={submitReview} noValidate className="mt-3 flex flex-col gap-3">
+                  <div
+                    role="radiogroup"
+                    aria-label="Your rating"
+                    className="flex items-center gap-1"
+                    onMouseLeave={() => setHoverRating(0)}
+                  >
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={formRating === value}
+                        aria-label={`${value} star${value === 1 ? "" : "s"}`}
+                        onClick={() => setFormRating(value)}
+                        onMouseEnter={() => setHoverRating(value)}
+                        className="grid h-9 w-9 place-items-center rounded-md transition-colors hover:bg-gold-50"
+                      >
+                        <Star
+                          size={22}
+                          className={
+                            value <= (hoverRating || formRating)
+                              ? "fill-gold-500 text-gold-500"
+                              : "text-slate-300"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  <TextField
+                    label="Your name"
+                    placeholder="Your Name"
+                    autoComplete="name"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                  />
+                  <textarea
+                    aria-label="Your review"
+                    placeholder="What did you (or the lucky kid) think of it?"
+                    rows={4}
+                    maxLength={2000}
+                    value={formText}
+                    onChange={(e) => setFormText(e.target.value)}
+                    className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-micro text-ink outline-none transition-colors placeholder:text-slate-400 focus:border-gold-500"
+                  />
+
+                  <Button type="submit" size="md" disabled={submitting} className="w-full">
+                    {submitting ? "Posting…" : "Post Review"}
+                  </Button>
+                  <p aria-live="polite" className="min-h-[1rem] text-nano text-[#B91C1C]">
+                    {formNotice}
+                  </p>
+                </form>
+              )}
+            </div>
           </div>
         )}
       </div>
