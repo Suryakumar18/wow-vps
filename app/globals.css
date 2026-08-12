@@ -27,6 +27,24 @@ body {
   color: rgb(var(--foreground-rgb));
 }
 
+/* The off-canvas panels — the account drawer, the mobile menu, the cart sheet —
+   are `position: fixed; right: 0` parked outside the viewport with
+   `translate-x-full`. A fixed element pushed past the right edge still counts
+   toward the scrollable area, so every mobile page picked up a horizontal
+   scrollbar and could be dragged sideways into empty white space.
+
+   `clip` rather than `hidden`: `overflow-x: hidden` on the root makes the
+   browser treat it as a scroll container, which silently kills the
+   `md:sticky` product-image column. `clip` stops the scrolling without
+   creating one. The `hidden` line above it is the fallback for browsers too
+   old for `clip` (pre-Safari 16), which have no sticky column at that width
+   anyway. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 /* Expands a small icon control to a 44x44 touch target (WCAG 2.5.5 / Apple HIG)
    without changing its rendered size or shifting layout. Requires the element to be
    positioned (relative/absolute).
