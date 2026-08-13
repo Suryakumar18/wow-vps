@@ -37,7 +37,10 @@ export default function Newsletter({
   return (
     <Section labelledBy="newsletter-heading" className={className}>
       <div className="relative isolate overflow-hidden rounded-xl bg-navy-800 px-panel py-4">
-        <BrandMark className="pointer-events-none absolute -right-2 top-1/2 hidden h-[6.3rem] w-[6.3rem] -translate-y-1/2 text-white/[0.05] lg:block" />
+        {/* Decorative watermark. The mark is an image now, so it fades with
+            `opacity` — the old `text-white/[0.05]` drove the SVG's
+            currentColor and does nothing to a bitmap. */}
+        <BrandMark className="pointer-events-none absolute -right-2 top-1/2 hidden h-[6.3rem] w-[6.3rem] -translate-y-1/2 opacity-[0.09] lg:block" />
 
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="flex items-center gap-3.5">
