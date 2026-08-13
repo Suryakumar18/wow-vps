@@ -36,9 +36,10 @@ export default function PrivacyPolicyPage() {
     >
       <PolicySection heading="1. Who we are">
         <p>
-          {BRAND} is a toy and hobby retailer trading from Texvalley, Erode and from Thuraiyur,
-          Tamil Nadu, India. We operate the online store at wowlifestyle.online. For anything in
-          this policy you can reach us on {TELEPHONE} or at {SUPPORT_EMAIL}.
+          {BRAND} is an online toy and hobby retailer serving customers across India, with a
+          store at Texvalley, Erode, Tamil Nadu. We operate the online store at
+          wowlifestyle.online. For anything in this policy you can reach us on {TELEPHONE} or at{" "}
+          {SUPPORT_EMAIL}.
         </p>
       </PolicySection>
 
@@ -232,7 +233,7 @@ export default function PrivacyPolicyPage() {
 
       <PolicySection heading="14. Contact us">
         <p>
-          {BRAND} — Texvalley, Erode and Thuraiyur, Tamil Nadu, India.
+          {BRAND} — Texvalley, Erode, Tamil Nadu, India.
           <br />
           Phone: {TELEPHONE}
           <br />

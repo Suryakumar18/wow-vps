@@ -131,7 +131,7 @@ export default function RefundPolicyPage() {
 
       <PolicySection heading="7. Contact">
         <p>
-          {BRAND} — Texvalley, Erode and Thuraiyur, Tamil Nadu, India.
+          {BRAND} — Texvalley, Erode, Tamil Nadu, India.
           <br />
           Phone / WhatsApp: {TELEPHONE}
           <br />

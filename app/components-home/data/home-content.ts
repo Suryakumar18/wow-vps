@@ -582,10 +582,10 @@ export const footer = {
   // where it trades from are what a search engine actually reads to decide
   // that "toy shop in Erode" should return this store.
   about:
-    "WOW Lifestyle — Texvalley, Erode and Thuraiyur, Tamil Nadu. Your one-stop " +
+    "WOW Lifestyle — India's online store for RC cars, toys and gadgets. Your one-stop " +
     "destination for hobby-grade RC cars, jeeps and bikes, toy drones, hobby models, " +
     "games, building sets and soft toys for kids and adults. Delivered all over India. " +
-    "Play. Build. Explore.",
+    "Visit us at Texvalley, Erode, Tamil Nadu. Play. Build. Explore.",
   columns: [
     {
       title: "Quick Links",
@@ -627,8 +627,7 @@ export const footer = {
     title: "We Accept",
     methods: ["VISA", "Mastercard", "UPI", "Paytm", "GPay", "PhonePe"],
   },
-  legal:
-    "© 2026 WOW Lifestyle — Texvalley, Erode & Thuraiyur, Tamil Nadu. All rights reserved.",
+  legal: "© 2026 WOW Lifestyle — Texvalley, Erode, Tamil Nadu. All rights reserved.",
   meta: ["Play. Build. Explore.", "#WOWLifestyle"],
 } as const;
 

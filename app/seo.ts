@@ -21,8 +21,6 @@ export const BRAND_ALIASES = [
   "WOW Lifestyle Texvalley",
   "Wowlifestyle Texvalley",
   "WOW Lifestyle Erode",
-  "WOW Lifestyle Thuraiyur",
-  "Wowlifestyle Thuraiyur",
 ];
 
 export const TELEPHONE = "+919677710045";
@@ -30,12 +28,13 @@ export const TELEPHONE = "+919677710045";
 export const PRICE_RANGE = "₹₹";
 
 /**
- * The shops, each published as its own local business.
+ * The shops, each published as its own local business, hanging off the one
+ * Organization below so search engines read them as one company.
  *
- * Two branches means two entities: a single LocalBusiness carrying one
- * address is what stops the other town from ever appearing in a "toy shop
- * near me" result. Both hang off the one Organization below, which is how
- * search engines are told they are the same company rather than rivals.
+ * Thuraiyur was removed on the owner's instruction (2026-08-13) along with
+ * every other mention, in favour of positioning the site nationally. Adding a
+ * branch back is just another entry here — its LocalBusiness entity, address
+ * and "areaServed" city all derive from this list.
  */
 export const BRANCHES = [
   {
@@ -43,13 +42,6 @@ export const BRANCHES = [
     /** Texvalley is the mall the shop trades from. */
     venue: "Texvalley",
     locality: "Erode",
-    region: "Tamil Nadu",
-    country: "IN",
-  },
-  {
-    id: "thuraiyur",
-    venue: "",
-    locality: "Thuraiyur",
     region: "Tamil Nadu",
     country: "IN",
   },
@@ -68,17 +60,25 @@ export const CATEGORIES_SOLD = [
   "Toys for kids and adults",
 ];
 
-export const TITLE_DEFAULT = `${BRAND} — Toys, RC Cars & Drones | Texvalley, Erode`;
+/**
+ * The shop's own positioning line, used straight after the brand name.
+ *
+ * It reads nationally rather than naming a town: the store ships all over
+ * India, and a title that led with one branch framed it as a local shop.
+ */
+export const TAGLINE = "India's Online Store for RC Cars, Toys & Gadgets";
+
+export const TITLE_DEFAULT = `${BRAND} — ${TAGLINE}`;
 export const TITLE_TEMPLATE = `%s | ${BRAND}`;
 
 export const DESCRIPTION =
-  "Hobby-grade RC cars, drones, bikes, jeeps and toys for kids and adults at " +
-  "WOW Lifestyle — Texvalley, Erode and Thuraiyur. Shop online with fast " +
-  "delivery across Tamil Nadu and all over India.";
+  "WOW Lifestyle — India's online store for hobby-grade RC cars, toys, drones, " +
+  "bikes, jeeps, diecast models and gadgets for kids and adults. Shop online " +
+  "with fast delivery across India, or visit us at Texvalley, Erode.";
 
 export const DESCRIPTION_SHORT =
-  "Toys, hobby-grade RC cars, drones and bikes for kids and adults. " +
-  "WOW Lifestyle — Texvalley, Erode, Tamil Nadu. Delivered across India.";
+  "India's online store for RC cars, toys, drones and gadgets. " +
+  "WOW Lifestyle — delivered across India.";
 
 /**
  * Google ignores the keywords meta tag, so this earns its place only through
@@ -109,13 +109,6 @@ export const KEYWORDS = [
   "best toy shop Tamil Nadu",
   "online toy store India",
   "toy shop Coimbatore Salem Tiruppur",
-  // The second branch. Shoppers spell the town several ways, and the site
-  // itself used two of these spellings before.
-  "wowlifestyle Thuraiyur",
-  "wow lifestyle Thuraiyur",
-  "toy shop Thuraiyur",
-  "toy shop Thuraiur",
-  "toys Thuraiyur Trichy",
   // Product intent
   "hobby grade RC cars India",
   "remote control cars Erode",
@@ -150,11 +143,12 @@ export function organizationJsonLd(siteUrl: string) {
       areaServed: "IN",
       availableLanguage: ["Tamil", "English"],
     },
+    // India first: the store sells nationwide and only happens to have a
+    // physical counter in Erode.
     areaServed: [
-      { "@type": "City", name: "Erode" },
-      { "@type": "City", name: "Thuraiyur" },
-      { "@type": "State", name: "Tamil Nadu" },
       { "@type": "Country", name: "India" },
+      { "@type": "State", name: "Tamil Nadu" },
+      { "@type": "City", name: "Erode" },
     ],
     subOrganization: BRANCHES.map((b) => ({ "@id": `${siteUrl}/#store-${b.id}` })),
   };
