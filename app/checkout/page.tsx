@@ -6,7 +6,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, MapPin, Plus, ShoppingBag, Truck } from "lucide-react";
 
 import { useCart } from "@/app/components-home/lib/CartContext";
-import { getAddresses, addAddress, type Address } from "@/app/components-home/lib/addresses";
+import {
+  getAddresses,
+  addAddress,
+  updateAddress,
+  type Address,
+} from "@/app/components-home/lib/addresses";
 import { computeTotals, type DeliveryMethodId } from "@/app/components-home/lib/pricing";
 import { payWithRazorpay } from "@/app/components-home/lib/razorpay";
 import { deliveryMethods, paymentMethods } from "@/app/components-home/data/home-content";
@@ -350,6 +355,9 @@ function AddressStep({
   // The form renders inline (not in a drawer, which is mobile-only chrome):
   // always when there's nothing saved yet, on demand otherwise.
   const [formOpen, setFormOpen] = useState(false);
+  /** Set while editing a saved address; the same form serves both jobs. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined;
 
   // Guest flow: the mobile number comes first, always. If it has ordered
   // before, the previous shipping address comes back as a one-tap suggestion.
@@ -498,14 +506,17 @@ function AddressStep({
       {hasAddresses && (
       <ul role="radiogroup" aria-labelledby={headingId} className="mt-3 flex flex-col gap-2.5">
         {addresses.map((a) => (
-          <li key={a.id}>
+          // Relative so "Edit" can sit inside the card. It has to be a sibling
+          // of the radio rather than a child — a button cannot nest inside a
+          // button, and the whole card is the radio's hit area.
+          <li key={a.id} className="relative">
             <button
               type="button"
               role="radio"
               aria-checked={a.id === selectedId}
               onClick={() => onSelect(a.id)}
               className={cn(
-                "flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors",
+                "flex w-full items-start gap-3 rounded-lg border p-3.5 pb-9 text-left transition-colors",
                 a.id === selectedId ? "border-gold-500 bg-gold-50" : "border-line hover:border-gold-300",
               )}
             >
@@ -532,12 +543,50 @@ function AddressStep({
                 )}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Editing an address implies delivering to it.
+                onSelect(a.id);
+                setEditingId(a.id);
+                setFormOpen(false);
+              }}
+              aria-label={`Edit address ${a.label}`}
+              className="absolute bottom-2.5 right-3 rounded px-1.5 py-0.5 text-nano font-semibold text-gold-600 underline-offset-2 transition-colors hover:bg-white/60 hover:underline"
+            >
+              Edit
+            </button>
           </li>
         ))}
       </ul>
       )}
 
-      {showForm ? (
+      {editingAddress ? (
+        <div className="mt-3 rounded-xl border border-gold-400 bg-gold-50/40 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-micro font-bold text-ink">Edit address</p>
+            <button
+              type="button"
+              onClick={() => setEditingId(null)}
+              className="text-nano font-semibold text-slate-500 transition-colors hover:text-ink"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="mt-3">
+            <NewAddressForm
+              // Remount when a different address is picked, so the form state
+              // re-derives instead of holding the previous one's values.
+              key={editingAddress.id}
+              editing={editingAddress}
+              onSaved={(nextAddresses, id) => {
+                onSaved(nextAddresses, id);
+                setEditingId(null);
+              }}
+            />
+          </div>
+        </div>
+      ) : showForm ? (
         <div
           className={cn(
             "rounded-xl border border-line p-4",
@@ -594,20 +643,47 @@ function AddressStep({
 function NewAddressForm({
   onSaved,
   initialPhone = "",
+  editing,
 }: {
   onSaved: (addresses: Address[], newId: string) => void;
   /** Prefilled from the guest phone gate so the number isn't typed twice. */
   initialPhone?: string;
+  /**
+   * When present the form edits this address in place instead of adding one.
+   * Its parts come from the API already split, so nothing has to be recovered
+   * by parsing the composed line.
+   */
+  editing?: Address;
 }) {
-  const [form, setForm] = useState({
-    label: "",
-    fullName: "",
-    phone: initialPhone,
-    line1: "",
-    state: "",
-    city: "",
-    otherCity: "",
-    pincode: "",
+  const [form, setForm] = useState(() => {
+    if (!editing) {
+      return {
+        label: "",
+        fullName: "",
+        phone: initialPhone,
+        line1: "",
+        state: "",
+        city: "",
+        otherCity: "",
+        pincode: "",
+      };
+    }
+    // A city typed in by hand (or one this list doesn't carry) has to come back
+    // as "Other" with the value in the free-text box, or the select would sit
+    // blank and silently drop it on save.
+    const savedCity = editing.city ?? "";
+    const known = INDIAN_STATES.find((s) => s.name === editing.state)?.cities ?? [];
+    const cityIsKnown = savedCity !== "" && known.includes(savedCity);
+    return {
+      label: editing.label === "Address" ? "" : editing.label,
+      fullName: editing.name ?? "",
+      phone: editing.phone,
+      line1: editing.line1 ?? "",
+      state: editing.state ?? "",
+      city: cityIsKnown ? savedCity : savedCity ? OTHER_CITY : "",
+      otherCity: cityIsKnown ? "" : savedCity,
+      pincode: editing.pincode ?? "",
+    };
   });
   const [errors, setErrors] = useState<NewAddressErrors>({});
   const fieldRefs = useRef<
@@ -646,7 +722,7 @@ function NewAddressForm({
       return;
     }
 
-    const nextAddresses = addAddress({
+    const input = {
       label: form.label || "Address",
       fullName: form.fullName,
       phone: form.phone,
@@ -654,7 +730,15 @@ function NewAddressForm({
       city: form.city === OTHER_CITY ? form.otherCity.trim() : form.city,
       state: form.state,
       pincode: form.pincode,
-    });
+    };
+
+    if (editing) {
+      // Keep the edited address selected rather than jumping to the newest.
+      onSaved(updateAddress(editing.id, input), editing.id);
+      return;
+    }
+
+    const nextAddresses = addAddress(input);
     onSaved(nextAddresses, nextAddresses[nextAddresses.length - 1].id);
   };
 
@@ -755,7 +839,7 @@ function NewAddressForm({
         error={errors.pincode}
       />
       <Button type="submit" size="md" className="mt-2 w-full">
-        Save Address
+        {editing ? "Save Changes" : "Save Address"}
       </Button>
     </form>
   );

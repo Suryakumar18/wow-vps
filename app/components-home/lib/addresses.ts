@@ -7,6 +7,18 @@ export interface Address {
   label: string;
   line: string;
   phone: string;
+  /**
+   * The address in its separate parts, as well as the composed `line`.
+   *
+   * `line` is what every list renders, but an edit form has to put each value
+   * back in its own field — and splitting the composed string to get there
+   * would break on any address whose street contains a comma. Optional so rows
+   * cached by an older build still typecheck.
+   */
+  line1?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
 }
 
 export interface NewAddressInput {
@@ -62,6 +74,16 @@ export function getAddresses(): Address[] {
   return [...cache];
 }
 
+/** The one place the composed one-line form of an address is built. */
+export function composeLine(input: {
+  line1: string;
+  city: string;
+  state: string;
+  pincode: string;
+}): string {
+  return `${input.line1.trim()}, ${input.city.trim()} - ${input.pincode.trim()}, ${input.state.trim()}`;
+}
+
 export function addAddress(input: NewAddressInput): Address[] {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `addr-${Date.now()}`;
@@ -70,8 +92,12 @@ export function addAddress(input: NewAddressInput): Address[] {
     id,
     label: input.label.trim() || "Address",
     name: input.fullName.trim(),
-    line: `${input.line1.trim()}, ${input.city.trim()} - ${input.pincode.trim()}, ${input.state.trim()}`,
+    line: composeLine(input),
     phone: input.phone.trim(),
+    line1: input.line1.trim(),
+    city: input.city.trim(),
+    state: input.state.trim(),
+    pincode: input.pincode.trim(),
   };
   cache = [...cache, optimistic];
   broadcast();
@@ -91,6 +117,58 @@ export function addAddress(input: NewAddressInput): Address[] {
     .catch(() => {
       cache = cache.filter((a) => a.id !== id);
       broadcast();
+    });
+
+  return [...cache];
+}
+
+/**
+ * Edit a saved address in place.
+ *
+ * Applied optimistically like `addAddress`, but the previous version is kept so
+ * a failed write can be rolled back — silently leaving a wrong address selected
+ * at checkout is worse than the edit appearing not to take.
+ */
+export function updateAddress(id: string, input: NewAddressInput): Address[] {
+  const previous = cache.find((a) => a.id === id);
+
+  cache = cache.map((a) =>
+    a.id === id
+      ? {
+          ...a,
+          label: input.label.trim() || "Address",
+          name: input.fullName.trim(),
+          line: composeLine(input),
+          phone: input.phone.trim(),
+          line1: input.line1.trim(),
+          city: input.city.trim(),
+          state: input.state.trim(),
+          pincode: input.pincode.trim(),
+        }
+      : a,
+  );
+  broadcast();
+
+  fetch("/api/addresses", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...input }),
+  })
+    .then((res) => (res.ok ? (res.json() as Promise<Address[]>) : null))
+    .then((all) => {
+      if (all) {
+        cache = all;
+        broadcast();
+      } else if (previous) {
+        cache = cache.map((a) => (a.id === id ? previous : a));
+        broadcast();
+      }
+    })
+    .catch(() => {
+      if (previous) {
+        cache = cache.map((a) => (a.id === id ? previous : a));
+        broadcast();
+      }
     });
 
   return [...cache];
