@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronDown, Crown, LogOut, Package, Pencil, PhoneCall, User, X } from "lucide-react";
+import { ChevronDown, Crown, LogOut, Package, Pencil, PhoneCall, User, X, LayoutDashboard } from "lucide-react";
 import { BrandMark } from "./ui/BrandLogo";
 import { announcement, brand, navItems as defaultNavItems, type NavItem } from "./data/home-content";
 import { cn } from "./lib/cn";
@@ -170,6 +170,18 @@ export default function MobileMenu({
                 <Pencil size={14} aria-hidden="true" />
                 <span className="max-w-[12rem] truncate">Edit Profile — {user.name}</span>
               </Link>
+              {/* Same shortcut the desktop dropdown carries, so an admin on a
+                  phone isn't left typing /admin by hand. */}
+              {user.isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  className="flex h-nav-control-md items-center justify-center gap-u-2 rounded-md border border-gold-400 bg-gold-50 text-nav-ui font-semibold text-gold-700 transition-colors hover:bg-gold-100"
+                >
+                  <LayoutDashboard size={14} aria-hidden="true" />
+                  Go to Admin Console
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={logout}

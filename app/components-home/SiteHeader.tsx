@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Crown, LogOut, Menu, Package, Pencil, User } from "lucide-react";
+import {
+  ChevronDown,
+  Crown,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Pencil,
+  User,
+} from "lucide-react";
 import Container from "./ui/Container";
 import BrandLogo from "./ui/BrandLogo";
 import SearchBar from "./SearchBar";
@@ -223,6 +232,21 @@ function AccountMenu() {
             <Pencil size={15} aria-hidden="true" className="text-slate-400" />
             Edit Profile
           </Link>
+          {/* Admins get a way into the back office from wherever they are on
+              the storefront. Gated on the same `isAdmin` flag the admin routes
+              check server-side, so this only hides the shortcut — it is not
+              what protects /admin. */}
+          {user.isAdmin && (
+            <Link
+              href="/admin"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={cn(menuItem, "border-t border-line font-semibold text-gold-700 hover:bg-gold-50")}
+            >
+              <LayoutDashboard size={15} aria-hidden="true" className="text-gold-600" />
+              Go to Admin Console
+            </Link>
+          )}
           <button
             type="button"
             role="menuitem"
