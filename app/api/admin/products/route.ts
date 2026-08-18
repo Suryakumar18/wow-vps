@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/server/prisma";
+import { socialVideoRows } from "@/app/server/socialVideo";
 import { requireAdmin } from "@/app/server/adminGuard";
 import { revalidateStorefront } from "@/app/server/revalidate";
 import { Prisma } from "@/app/generated/prisma/client";
@@ -23,6 +24,7 @@ interface ProductBody {
   colors?: { name: string; hex: string; images: string[] }[];
   images?: string[];
   videos?: string[];
+  socialVideos?: { url: string; title?: string }[];
   specifications?: { label: string; value: string }[];
 }
 
@@ -148,6 +150,7 @@ export async function POST(request: NextRequest) {
       },
       images: { create: (body.images ?? []).map((url, position) => ({ url, position })) },
       videos: { create: (body.videos ?? []).map((url, position) => ({ url, position })) },
+      socialVideos: { create: socialVideoRows(body.socialVideos) },
       specifications: {
         create: (body.specifications ?? []).map((spec, position) => ({
           label: spec.label,

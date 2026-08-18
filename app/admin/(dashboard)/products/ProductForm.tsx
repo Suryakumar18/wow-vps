@@ -9,6 +9,7 @@ import { formatPrice } from "@/app/components-home/lib/format";
 import { cn } from "@/app/components-home/lib/cn";
 import { Field, Input, Select, Textarea, FormError } from "../ui";
 import MediaUploader from "../MediaUploader";
+import SocialVideoLinks from "./SocialVideoLinks";
 import { useToast } from "../Toast";
 import RichEditor from "./RichEditor";
 
@@ -43,6 +44,7 @@ export interface ProductFormValues {
   /** Public URLs on the VPS, in gallery order. */
   images: string[];
   videos: string[];
+  socialVideos: { url: string; title: string }[];
   /** One "Label: value" pair per line. */
   specifications: string;
 }
@@ -261,6 +263,7 @@ export default function ProductForm({
         .filter((c) => c.name.length > 0),
       images: values.images,
       videos: values.videos,
+      socialVideos: values.socialVideos,
       specifications: parseSpecs(values.specifications),
     };
 
@@ -498,6 +501,14 @@ export default function ProductForm({
               values={values.videos}
               onChange={(next) => set("videos", next)}
               accept="video"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <p className="mb-1.5 text-micro font-medium text-ink">Social media videos</p>
+            <SocialVideoLinks
+              values={values.socialVideos}
+              onChange={(next) => set("socialVideos", next)}
             />
           </div>
         </Section>

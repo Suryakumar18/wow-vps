@@ -28,6 +28,7 @@ import Icon, { type IconName } from "@/app/components-home/ui/Icon";
 import BottomSheet from "@/app/components-home/ui/BottomSheet";
 import ProductCard from "@/app/components-home/ProductCard";
 import RichText from "@/app/components-home/RichText";
+import SocialVideoEmbed from "@/app/components-home/SocialVideoEmbed";
 import { formatPrice } from "@/app/components-home/lib/format";
 import {
   productAssurances,
@@ -650,7 +651,7 @@ const reviewDate = new Intl.DateTimeFormat("en-IN", {
  * screen width, and customers read and write reviews in the second tab.
  */
 function DetailTabs({ product }: { product: CatalogProduct }) {
-  const [tab, setTab] = useState<"description" | "reviews">("description");
+  const [tab, setTab] = useState<"description" | "videos" | "reviews">("description");
   const user = useCurrentUser();
 
   const [reviews, setReviews] = useState<ReviewRow[] | null>(null);
@@ -735,8 +736,14 @@ function DetailTabs({ product }: { product: CatalogProduct }) {
   const reviewCount = summary?.count ?? product.numReviews;
   const averageShown = summary && summary.count > 0 ? summary.average : product.rating;
 
+  // The Videos tab only appears when there is something in it — an empty tab
+  // on every product reads as a broken feature.
+  const socialVideos = product.socialVideos ?? [];
   const tabs = [
     { key: "description" as const, label: "Detailed Description" },
+    ...(socialVideos.length > 0
+      ? [{ key: "videos" as const, label: `Videos (${socialVideos.length})` }]
+      : []),
     { key: "reviews" as const, label: `Reviews${reviewCount > 0 ? ` (${reviewCount})` : ""}` },
   ];
 
@@ -773,6 +780,12 @@ function DetailTabs({ product }: { product: CatalogProduct }) {
               A detailed write-up for this product is on its way.
             </p>
           )
+        ) : tab === "videos" ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {socialVideos.map((v, i) => (
+              <SocialVideoEmbed key={`${v.url}-${i}`} video={v} />
+            ))}
+          </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
             {/* Review list */}

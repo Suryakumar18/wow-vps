@@ -4,6 +4,8 @@
 import { Fragment } from "react";
 import Image from "next/image";
 import { cn } from "./lib/cn";
+import { parseSocialVideo } from "./lib/socialVideo";
+import SocialVideoEmbed from "./SocialVideoEmbed";
 
 /**
  * Light markup for long-form product details, shared by the admin editor's
@@ -30,7 +32,8 @@ export type RichBlock =
   | { type: "heading"; text: string; align: RichAlign }
   | { type: "paragraph"; text: string; align: RichAlign }
   | { type: "bullets"; items: string[] }
-  | { type: "image"; url: string; align: RichAlign };
+  | { type: "image"; url: string; align: RichAlign }
+  | { type: "video"; url: string; align: RichAlign };
 
 const ALIGN_PREFIX = /^\[(left|center|right)\]\s*/i;
 const IMAGE_EXPLICIT = /^\[img\]\s*(https?:\/\/\S+)$/i;
@@ -89,6 +92,13 @@ export function parseRichBlocks(text: string): RichBlock[] {
     const explicitImage = line.match(IMAGE_EXPLICIT);
     if (explicitImage) {
       blocks.push({ type: "image", url: explicitImage[1], align });
+      continue;
+    }
+    // Checked before the image heuristic: a social link never has an image
+    // extension, but keeping the order explicit means adding an image host
+    // later cannot accidentally swallow a video URL.
+    if (BARE_URL.test(line) && parseSocialVideo(line)) {
+      blocks.push({ type: "video", url: line, align });
       continue;
     }
     if (BARE_URL.test(line) && looksLikeImageUrl(line)) {
@@ -189,6 +199,25 @@ export default function RichText({ text, className }: { text: string; className?
                 ))}
               </ul>
             );
+          case "video": {
+            const parsed = parseSocialVideo(block.url);
+            if (!parsed) return null;
+            // Capped and aligned like an image: a full-width embed inside a
+            // 60rem description column is far larger than the clip warrants.
+            const alignClass =
+              block.align === "center"
+                ? "self-center"
+                : block.align === "right"
+                  ? "self-end"
+                  : "self-start";
+            return (
+              <div key={i} className={cn("w-full max-w-2xl", alignClass)}>
+                <SocialVideoEmbed
+                  video={{ url: parsed.url, platform: parsed.platform, embedUrl: parsed.embedUrl }}
+                />
+              </div>
+            );
+          }
           case "image": {
             // `self-*`, not `mx-auto`: this is a column flex container, so a
             // child with no align-self is *stretched* to the full width. On an

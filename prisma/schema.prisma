@@ -214,6 +214,7 @@ model Product {
 
   images         ProductImage[]
   videos         ProductVideo[]
+  socialVideos   ProductSocialVideo[]
   specifications ProductSpecification[]
   colors         ProductColor[]
   cartItems      CartItem[]
@@ -651,4 +652,35 @@ model OrderItem {
   product   Product? @relation(fields: [productId], references: [id])
 
   @@map("order_items")
+}
+
+/// A social-media video linked to a product (YouTube, Instagram, Facebook, X).
+///
+/// Deliberately separate from `ProductVideo`: that model holds files uploaded
+/// to our own server and played inline in the gallery. These are links to video
+/// hosted by someone else, embedded in the storefront's "Videos" tab. Mixing
+/// the two would mean a gallery player receiving an Instagram URL it cannot
+/// play, and an embed grid receiving an mp4.
+///
+/// `platform` and `embedUrl` are derived from `url` at write time by
+/// `app/server/socialVideo.ts` rather than trusted from the client, so a
+/// storefront render never has to parse a URL or build a third-party embed
+/// address itself.
+model ProductSocialVideo {
+  id        String @id @default(cuid())
+  /// The link as the admin pasted it — kept so the admin UI can show it back.
+  url       String
+  /// "youtube" | "instagram" | "facebook" | "x"
+  platform  String
+  /// The iframe src. Empty when the platform has no embeddable frame (X),
+  /// in which case the storefront renders a link card instead.
+  embedUrl  String @default("")
+  /// Optional caption shown under the embed.
+  title     String @default("")
+  position  Int    @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_social_videos")
 }

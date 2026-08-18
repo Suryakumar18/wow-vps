@@ -83,6 +83,7 @@ const detailInclude = {
   subcategory: true,
   images: { orderBy: { position: "asc" } },
   videos: { orderBy: { position: "asc" } },
+  socialVideos: { orderBy: { position: "asc" } },
   specifications: { orderBy: { position: "asc" } },
   colors: { orderBy: { position: "asc" } },
 } satisfies Prisma.ProductInclude;
@@ -108,6 +109,13 @@ const toProduct = (p: DetailRow, offer: ActiveOffer | null = null): CatalogProdu
   specifications: p.specifications.map((s) => ({ label: s.label, value: s.value })),
   images: p.images.map((i) => i.url),
   videos: p.videos.map((v) => v.url),
+  socialVideos: p.socialVideos.map((v) => ({
+    url: v.url,
+    // Written by socialVideoRows(), which only ever emits these four.
+    platform: v.platform as "youtube" | "instagram" | "facebook" | "x",
+    embedUrl: v.embedUrl,
+    title: v.title,
+  })),
 });
 
 /* ------------------------------------------------------------------ */

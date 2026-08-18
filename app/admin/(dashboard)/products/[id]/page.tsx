@@ -12,6 +12,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       include: {
         images: { orderBy: { position: "asc" } },
         videos: { orderBy: { position: "asc" } },
+        socialVideos: { orderBy: { position: "asc" } },
         specifications: { orderBy: { position: "asc" } },
         colors: { orderBy: { position: "asc" } },
       },
@@ -66,6 +67,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           idealFor: product.idealFor.join("\n"),
           images: product.images.map((image) => image.url),
           videos: product.videos.map((video) => video.url),
+          socialVideos: product.socialVideos.map((v) => ({ url: v.url, title: v.title })),
           specifications: product.specifications.map((s) => `${s.label}: ${s.value}`).join("\n"),
         }}
       />

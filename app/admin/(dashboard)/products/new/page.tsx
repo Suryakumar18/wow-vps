@@ -47,6 +47,7 @@ export default async function NewProductPage() {
           idealFor: "",
           images: [],
           videos: [],
+          socialVideos: [],
           specifications: "",
         }}
       />

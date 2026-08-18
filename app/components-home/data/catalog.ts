@@ -43,6 +43,19 @@ export interface CatalogProduct {
   images: string[];
   /** Absent on the seeded rows; populated for products with uploaded video. */
   videos?: string[];
+  /**
+   * Social-media clips linked to this product, embedded in the "Videos" tab.
+   *
+   * Separate from `videos`, which are files uploaded to our own server and
+   * played by the gallery. `platform` and `embedUrl` are derived server-side
+   * when the admin saves, so the storefront never parses a URL.
+   */
+  socialVideos?: {
+    url: string;
+    platform: "youtube" | "instagram" | "facebook" | "x";
+    embedUrl: string;
+    title?: string;
+  }[];
 }
 
 const p = (

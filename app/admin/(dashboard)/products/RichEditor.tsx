@@ -82,6 +82,15 @@ export function markupToDoc(text: string): JSONContent {
           attrs: { textAlign: block.align },
           content: [{ type: "image", attrs: { src: block.url } }],
         };
+      case "video":
+        // The editor has no embed node, so a social video link round-trips as
+        // the bare URL on its own line — which is exactly the markup RichText
+        // parses back into an embed. Editing it stays a matter of editing text.
+        return {
+          type: "paragraph",
+          attrs: { textAlign: block.align },
+          content: [{ type: "text", text: block.url }],
+        };
       default:
         return {
           type: "paragraph",

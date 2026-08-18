@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/server/prisma";
+import { socialVideoRows } from "@/app/server/socialVideo";
 import { requireAdmin } from "@/app/server/adminGuard";
 import { revalidateStorefront } from "@/app/server/revalidate";
 
@@ -23,6 +24,7 @@ interface ProductPatch {
   colors?: { name: string; hex: string; images: string[] }[];
   images?: string[];
   videos?: string[];
+  socialVideos?: { url: string; title?: string }[];
   specifications?: { label: string; value: string }[];
 }
 
@@ -74,6 +76,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: body.videos.map((url, position) => ({ productId: id, url, position })),
     });
   }
+  if (body.socialVideos) {
+    await prisma.productSocialVideo.deleteMany({ where: { productId: id } });
+    await prisma.productSocialVideo.createMany({
+      data: socialVideoRows(body.socialVideos).map((row) => ({ ...row, productId: id })),
+    });
+  }
   if (body.specifications) {
     await prisma.productSpecification.deleteMany({ where: { productId: id } });
     await prisma.productSpecification.createMany({
@@ -106,6 +114,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     include: {
       images: { orderBy: { position: "asc" } },
       videos: { orderBy: { position: "asc" } },
+      socialVideos: { orderBy: { position: "asc" } },
       specifications: { orderBy: { position: "asc" } },
       colors: { orderBy: { position: "asc" } },
     },
